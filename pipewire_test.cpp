@@ -1,9 +1,12 @@
 #include <iostream>
 #include <cmath>
 #include <cstdint>
+#include <ctime>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
+
+static long long previous_timestamp = 0;
 
 
 struct AppData
@@ -14,6 +17,19 @@ struct AppData
 
 void on_process(void *userdata)
 {
+
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    long long timestamp =
+        ts.tv_sec * 1000000000LL + ts.tv_nsec;
+
+    std::cout << "Audio callback: "
+              << timestamp
+              << " ns\n";
+
+
     AppData *data =
         static_cast<AppData *>(userdata);
 
@@ -64,6 +80,23 @@ void on_process(void *userdata)
     uint32_t frames =
         data_block->maxsize /
         (sizeof(int16_t) * 2);
+
+        std::cout << "Frames: "
+          << frames
+          << "\n";
+
+
+     if (previous_timestamp != 0)
+    {
+        long long interval =
+            timestamp - previous_timestamp;
+
+        std::cout << "Callback interval: "
+                  << interval
+                  << " ns\n";
+    }
+
+    previous_timestamp = timestamp;
 
     for (uint32_t i = 0; i < frames; i++)
     {
