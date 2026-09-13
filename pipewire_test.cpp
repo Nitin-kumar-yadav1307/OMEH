@@ -2,12 +2,16 @@
 #include <cmath>
 #include <cstdint>
 #include <ctime>
+#include <climits>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
 
 static long long previous_timestamp = 0;
-
+static long long total_interval = 0;
+static long long min_interval = LLONG_MAX;
+static long long max_interval = 0;
+static int interval_count = 0;
 
 struct AppData
 {
@@ -32,9 +36,28 @@ void on_process(void *userdata)
 
     AppData *data =
         static_cast<AppData *>(userdata);
+    
+    struct pw_time time;
+
+   int result = pw_stream_get_time_n(data->stream, &time, sizeof(time));
+
+    if (result == 0)
+    {
+        std::cout << "now: " << time.now << "\n";
+        std::cout << "ticks: " << time.ticks << "\n";
+        std::cout << "delay: " << time.delay << "\n";
+        std::cout << "queued: " << time.queued << "\n";
+        std::cout << "rate numerator: "
+          << time.rate.num << "\n";
+
+        std::cout << "rate denominator: "
+                << time.rate.denom << "\n";
+            }
 
     struct pw_buffer *b =
         pw_stream_dequeue_buffer(data->stream);
+    
+    std::cout << "Buffer pointer: " << b << "\n";
 
     if (b == nullptr)
         return;
@@ -86,14 +109,24 @@ void on_process(void *userdata)
           << "\n";
 
 
-     if (previous_timestamp != 0)
+        if (previous_timestamp != 0)
     {
         long long interval =
             timestamp - previous_timestamp;
 
+        total_interval += interval;
+
+        if (interval < min_interval)
+            min_interval = interval;
+
+        if (interval > max_interval)
+            max_interval = interval;
+
+        interval_count++;
+
         std::cout << "Callback interval: "
-                  << interval
-                  << " ns\n";
+                << interval
+                << " ns\n";
     }
 
     previous_timestamp = timestamp;
