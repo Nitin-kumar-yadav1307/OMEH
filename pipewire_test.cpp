@@ -89,7 +89,7 @@ void on_process(void *userdata)
 
     const int note_count = 7;
     static uint64_t sample_count = 0;
-    const float sample_rate = 44100.0f;
+    const float sample_rate = 48000.0f;
     const float amplitude = 0.5f;
 
 
@@ -131,44 +131,20 @@ void on_process(void *userdata)
 
     previous_timestamp = timestamp;
 
-    for (uint32_t i = 0; i < frames; i++)
-    {
-        float value =
-            std::sin(
-                2.0f *
-                3.14159265f *
-                phase
-            ) * amplitude;
+   
 
+        for (uint32_t i = 0; i < frames; i++) {
 
-        int16_t sample =
-            static_cast<int16_t>(
-                value * 32767.0f
-            );
+        int16_t sample = 0;
 
+        if (sample_count % 48000 < 480) {
+            sample = 30000;
+        }
 
-        // Left channel
         samples[i * 2] = sample;
-
-        // Right channel
         samples[i * 2 + 1] = sample;
 
-
-        phase += frequencies[note] / sample_rate;
-
-        if (phase >= 1.0f)
-          phase -= 1.0f;
-
-      sample_count++;
-
-      if (sample_count >= samples_per_note)
-      {
-          sample_count = 0;
-          note++;
-
-          if (note >= note_count)
-              note = 0;
-      }
+        sample_count++;
     }
 
 
@@ -258,7 +234,7 @@ int main(int argc, char *argv[])
         2;
 
     audio_info.rate =
-        44100;
+        48000;
 
 
     params[0] =
