@@ -1,186 +1,108 @@
 #include <iostream>
-#include <cmath>
 #include <cstdint>
-#include <ctime>
-#include <climits>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
 
-static long long previous_timestamp = 0;
-static long long total_interval = 0;
-static long long min_interval = LLONG_MAX;
-static long long max_interval = 0;
-static int interval_count = 0;
-
 struct AppData
 {
     struct pw_stream *stream;
+    uint64_t sample_count = 0;
 };
 
-
+/*
+ * Generate the same test pulse on each stream.
+ */
 void on_process(void *userdata)
 {
-
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    long long timestamp =
-        ts.tv_sec * 1000000000LL + ts.tv_nsec;
-
-    std::cout << "Audio callback: "
-              << timestamp
-              << " ns\n";
-
-
-    AppData *data =
+    AppData *app =
         static_cast<AppData *>(userdata);
-    
-    struct pw_time time;
-
-   int result = pw_stream_get_time_n(data->stream, &time, sizeof(time));
-
-    if (result == 0)
-    {
-        std::cout << "now: " << time.now << "\n";
-        std::cout << "ticks: " << time.ticks << "\n";
-        std::cout << "delay: " << time.delay << "\n";
-        std::cout << "queued: " << time.queued << "\n";
-        std::cout << "rate numerator: "
-          << time.rate.num << "\n";
-
-        std::cout << "rate denominator: "
-                << time.rate.denom << "\n";
-            }
 
     struct pw_buffer *b =
-        pw_stream_dequeue_buffer(data->stream);
-    
-    std::cout << "Buffer pointer: " << b << "\n";
+        pw_stream_dequeue_buffer(app->stream);
 
     if (b == nullptr)
         return;
 
-    struct spa_buffer *buf =
-        b->buffer;
+    struct spa_buffer *buf = b->buffer;
 
-    struct spa_data *data_block =
+    struct spa_data *data =
         &buf->datas[0];
 
-    if (data_block->data == nullptr)
-        return;
-
-    int16_t *samples =
-        static_cast<int16_t *>(data_block->data);
-
-
-    static float phase = 0.0f;
-
-    const float frequencies[] = {
-    440.0f,   // A4
-    554.37f,  // C#5
-    659.25f,  // E5
-    880.0f,   // A5
-    659.25f,  // E5
-    554.37f,  // C#5
-    440.0f    // A4
-  };
-
-    const int note_count = 7;
-    static uint64_t sample_count = 0;
-    const float sample_rate = 48000.0f;
-    const float amplitude = 0.5f;
-
-
-   
-    static int note = 0;
-
-    const uint64_t samples_per_note =
-    static_cast<uint64_t>(sample_rate * 0.4f);
-
-
-    uint32_t frames =
-        data_block->maxsize /
-        (sizeof(int16_t) * 2);
-
-        std::cout << "Frames: "
-          << frames
-          << "\n";
-
-
-        if (previous_timestamp != 0)
+    if (data->data == nullptr)
     {
-        long long interval =
-            timestamp - previous_timestamp;
-
-        total_interval += interval;
-
-        if (interval < min_interval)
-            min_interval = interval;
-
-        if (interval > max_interval)
-            max_interval = interval;
-
-        interval_count++;
-
-        std::cout << "Callback interval: "
-                << interval
-                << " ns\n";
+        pw_stream_queue_buffer(app->stream, b);
+        return;
     }
 
-    previous_timestamp = timestamp;
+    int16_t *samples =
+        static_cast<int16_t *>(data->data);
 
-   
+    /*
+     * Stereo:
+     * 2 channels × 16 bits
+     */
+    uint32_t frames =
+        data->maxsize / (sizeof(int16_t) * 2);
 
-        for (uint32_t i = 0; i < frames; i++) {
+    /*
+     * Generate a 10 ms pulse every second.
+     *
+     * 48000 samples/sec
+     * 480 samples = 10 ms
+     */
+    for (uint32_t i = 0; i < frames; i++)
+    {
+        uint64_t position =
+            app->sample_count % 48000;
 
         int16_t sample = 0;
 
-        if (sample_count % 48000 < 480) {
+        if (position < 480)
             sample = 30000;
-        }
 
         samples[i * 2] = sample;
         samples[i * 2 + 1] = sample;
 
-        sample_count++;
+        app->sample_count++;
     }
 
+    data->chunk->offset = 0;
 
-    // Tell PipeWire how much audio we produced
-    data_block->chunk->offset = 0;
-
-    data_block->chunk->stride =
+    data->chunk->stride =
         sizeof(int16_t) * 2;
 
-    data_block->chunk->size =
+    data->chunk->size =
         frames * sizeof(int16_t) * 2;
 
-
-    // Give the buffer back to PipeWire
     pw_stream_queue_buffer(
-        data->stream,
+        app->stream,
         b
     );
 }
 
 
-int main(int argc, char *argv[])
+struct pw_stream *create_stream(
+    struct pw_main_loop *loop,
+    const char *stream_name,
+    const char *target,
+    AppData *appData)
 {
-    pw_init(&argc, &argv);
+    struct pw_properties *props =
+        pw_properties_new(
+            PW_KEY_MEDIA_TYPE, "Audio",
+            PW_KEY_MEDIA_CATEGORY, "Playback",
+            PW_KEY_MEDIA_ROLE, "Music",
 
+            /*
+             * IMPORTANT:
+             * Tell PipeWire exactly which
+             * Bluetooth sink this stream belongs to.
+             */
+            PW_KEY_TARGET_OBJECT, target,
 
-    struct pw_main_loop *loop;
-
-    struct pw_stream *stream;
-
-
-    loop = pw_main_loop_new(nullptr);
-
-
-    const struct spa_pod *params[1];
-
+            nullptr
+        );
 
     struct pw_stream_events events = {};
 
@@ -190,31 +112,23 @@ int main(int argc, char *argv[])
     events.process =
         on_process;
 
+    struct pw_stream *stream =
+        pw_stream_new_simple(
+            pw_main_loop_get_loop(loop),
+            stream_name,
+            props,
+            &events,
+            appData
+        );
 
-    struct pw_properties *props;
-
-    props = pw_properties_new(
-        PW_KEY_MEDIA_TYPE, "Audio",
-        PW_KEY_MEDIA_CATEGORY, "Playback",
-        PW_KEY_MEDIA_ROLE, "Music",
-        nullptr
-    );
-
-
-    AppData appData;
-
-
-    stream = pw_stream_new_simple(
-        pw_main_loop_get_loop(loop),
-        "My Audio Stream",
-        props,
-        &events,
-        &appData
-    );
+    return stream;
+}
 
 
-    appData.stream = stream;
-
+bool connect_stream(
+    struct pw_stream *stream)
+{
+    const struct spa_pod *params[1];
 
     uint8_t buffer[1024];
 
@@ -224,18 +138,14 @@ int main(int argc, char *argv[])
             sizeof(buffer)
         );
 
-
     struct spa_audio_info_raw audio_info = {};
 
     audio_info.format =
         SPA_AUDIO_FORMAT_S16;
 
-    audio_info.channels =
-        2;
+    audio_info.channels = 2;
 
-    audio_info.rate =
-        48000;
-
+    audio_info.rate = 48000;
 
     params[0] =
         spa_format_audio_raw_build(
@@ -244,25 +154,85 @@ int main(int argc, char *argv[])
             &audio_info
         );
 
+    int result =
+        pw_stream_connect(
+            stream,
+            PW_DIRECTION_OUTPUT,
+            PW_ID_ANY,
 
-    pw_stream_connect(
-        stream,
-        PW_DIRECTION_OUTPUT,
-        PW_ID_ANY,
+            static_cast<pw_stream_flags>(
+                PW_STREAM_FLAG_MAP_BUFFERS |
+                PW_STREAM_FLAG_RT_PROCESS
+            ),
 
-        static_cast<pw_stream_flags>(
-            PW_STREAM_FLAG_AUTOCONNECT |
-            PW_STREAM_FLAG_MAP_BUFFERS |
-            PW_STREAM_FLAG_RT_PROCESS
-        ),
+            params,
+            1
+        );
 
-        params,
-        1
-    );
+    return result == 0;
+}
 
+
+int main(int argc, char *argv[])
+{
+    pw_init(&argc, &argv);
+
+    struct pw_main_loop *loop =
+        pw_main_loop_new(nullptr);
+
+    /*
+     * 3r
+     */
+    AppData app3r{};
+    AppData app2r{};
+
+    struct pw_stream *stream3r =
+        create_stream(
+            loop,
+            "My Audio Stream 3r",
+            "bluez_output.41_42_D8_E4_B4_72.1",
+            &app3r
+        );
+
+    struct pw_stream *stream2r =
+        create_stream(
+            loop,
+            "My Audio Stream 2r",
+            "bluez_output.B0_A3_F2_29_8E_C8.1",
+            &app2r
+        );
+
+    app3r.stream = stream3r;
+    app2r.stream = stream2r;
+    
+    if (!stream3r || !stream2r)
+    {
+        std::cerr
+            << "Failed to create streams\n";
+
+        return 1;
+    }
+
+    if (!connect_stream(stream3r))
+    {
+        std::cerr
+            << "Failed to connect 3r stream\n";
+
+        return 1;
+    }
+
+    if (!connect_stream(stream2r))
+    {
+        std::cerr
+            << "Failed to connect 2r stream\n";
+
+        return 1;
+    }
+
+    std::cout
+        << "Both Bluetooth streams started.\n";
 
     pw_main_loop_run(loop);
-
 
     return 0;
 }
