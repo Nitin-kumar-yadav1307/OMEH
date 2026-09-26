@@ -25,11 +25,15 @@
  *
  *  1. Windows has NO built-in silent virtual device, so we loopback-
  *     capture the real default output — which KEEPS PLAYING the sound
- *     (usually the Speakers). Turn the speaker volume down if you do
- *     not want to hear it twice. CAUTION: on Windows 10 muting the
- *     source can mute the loopback capture itself (the tap sits after
- *     the mute on some builds); Windows 11 is not affected. Safe
- *     recipe: leave the source UNMUTED at low volume.
+ *     (usually the Speakers). Pass --mute-source to silence the source
+ *     while the program runs (its mute state is restored on exit): on
+ *     Windows 11 the loopback tap sits BEFORE the endpoint mute, so the
+ *     capture still receives the real programme audio. CAUTION: on some
+ *     Windows 10 builds the tap sits AFTER the mute and the buds would
+ *     then get silence — if that happens, drop the flag and just turn
+ *     the speaker volume down instead. Example with trims:
+ *
+ *         pipewire_sync_win.exe --mute-source 0:0 1:12
  *
  *  2. If the default output IS one of the earbuds, that bud would get
  *     the audio twice (directly and from us = echo), so we switch the
@@ -152,6 +156,18 @@ static const PROPERTYKEY PK_InstanceId = {
 
 #define POLL_MS         5       /* main loop period (needs timeBeginPeriod(1)) */
 #define HEALTH_MS       1000    /* 1 s health / alignment / status tick  */
+/*
+ * An empty loopback poll only counts as a REAL engine-idle gap when no
+ * packet has arrived for this long. The source engine delivers a packet
+ * roughly every 10 ms while we poll every POLL_MS, so empty polls are
+ * the NORM during playback — synthesising silence on them (the old
+ * code) counted the same wall-clock twice and over-fed the rings by
+ * ~50 %, which tripped HARD_SYNC_FRAMES over and over (audible skips
+ * and wandering offsets between the buds). 30 ms > 2-3 packet periods
+ * but stays below the 40 ms ring target, so a false trigger can never
+ * reach the 50 ms hard-sync threshold either.
+ */
+#define IDLE_GRACE_MS   30
 
 /* our own marker, so logs read like the Linux build */
 #define OUR_APP_NAME    "pipewire_sync"
@@ -349,6 +365,12 @@ struct App
     bool   switched_default = false;
     bool   prev_saved       = false;
 
+    /* --mute-source: silence the loopback source endpoint so only the
+       buds are audible (state restored on exit)                      */
+    bool   mute_source     = false;
+    bool   src_muted_by_us = false;
+    bool   src_prev_muted  = false;
+
     /* latency alignment phase */
     bool     aligning    = true;
     uint64_t align_ticks = 0;
@@ -371,6 +393,7 @@ static volatile LONG g_stop     = 0;   /* set by Ctrl+C handler          */
 static HANDLE g_stop_evt        = nullptr;
 static HANDLE g_clean_evt       = nullptr;
 static uint64_t g_last_synth_ms = 0;   /* silence synthesis clock        */
+static uint64_t g_last_pkt_ms   = 0;   /* last loopback packet received  */
 
 /* defined below start_playback(), which needs it for late-joining buds */
 static double default_target_level(const DeviceOut *dev);
@@ -654,6 +677,40 @@ static void stop_capture()
     app.cap_rate = 0.0;
 }
 
+/*
+ * --mute-source helpers. On Windows 11 the loopback tap sits BEFORE the
+ * endpoint mute, so muting the source silences the speakers while the
+ * capture keeps receiving the real programme audio (verified against
+ * OBS #11761 / Win11 and NAudio #1045 / Win10 — the Win10 tap can be
+ * after the mute, hence the flag is opt-in).
+ */
+static bool source_mute_get(bool *out)
+{
+    IAudioEndpointVolume *v = nullptr;
+    if (!app.src_endpoint ||
+        FAILED(app.src_endpoint->Activate(IID_IAudioEndpointVolume_,
+                                          CLSCTX_ALL, nullptr, (void **)&v)) || !v)
+        return false;
+    BOOL b = FALSE;
+    HRESULT hr = v->GetMute(&b);
+    v->Release();
+    if (FAILED(hr)) return false;
+    *out = b != FALSE;
+    return true;
+}
+
+static bool source_mute_set(bool mute)
+{
+    IAudioEndpointVolume *v = nullptr;
+    if (!app.src_endpoint ||
+        FAILED(app.src_endpoint->Activate(IID_IAudioEndpointVolume_,
+                                          CLSCTX_ALL, nullptr, (void **)&v)) || !v)
+        return false;
+    HRESULT hr = v->SetMute(mute ? TRUE : FALSE, nullptr);
+    v->Release();
+    return SUCCEEDED(hr);
+}
+
 static bool start_capture()
 {
     stop_capture();   /* idempotent */
@@ -711,10 +768,15 @@ static bool start_capture()
     app.cap_rs.reset((double)app.cap_rate / (double)RATE);
     app.cap_client->Start();
     g_last_synth_ms = 0;
+    g_last_pkt_ms   = 0;
     app.idle_gap = false;
 
     fprintf(stdout, "[main] loopback capture started on \"%s\" (%.0f Hz)\n",
             app.src_name.c_str(), app.cap_rate);
+
+    /* capture restarted (health tick) — re-assert the mute we applied */
+    if (app.src_muted_by_us)
+        source_mute_set(true);
     return true;
 }
 
@@ -864,7 +926,14 @@ static void drain_capture()
     uint64_t now = GetTickCount64();
     if (got_any)
     {
-        app.idle_gap = false;
+        /*
+         * Real content arrived: we are current as of NOW. Both clocks
+         * move forward together so the next idle decision is measured
+         * from this packet — synthesising on top of real packets is
+         * exactly the double-count that made the master run ~1.5x fast.
+         */
+        app.idle_gap   = false;
+        g_last_pkt_ms   = now;
         g_last_synth_ms = now;
     }
     else
@@ -874,16 +943,28 @@ static void drain_capture()
             app.capture_empties++;
             app.idle_gap = true;
         }
-        if (g_last_synth_ms != 0)
+        /*
+         * Synthesise ONLY when the source engine is genuinely idle:
+         * no packet for longer than IDLE_GRACE_MS. During playback the
+         * packets arrive every ~10 ms between our 5 ms polls, so
+         * `now - g_last_pkt_ms` never reaches the grace window and we
+         * inject nothing — the rings then get exactly one copy of the
+         * wall clock (from the packets themselves).
+         */
+        if (g_last_pkt_ms != 0 && now - g_last_pkt_ms > IDLE_GRACE_MS)
         {
-            uint64_t elapsed = now - g_last_synth_ms;
-            if (elapsed > 50) elapsed = 50;   /* never burst             */
-            uint32_t frames = (uint32_t)(elapsed * RATE / 1000);
+            uint64_t start = g_last_synth_ms;
+            if (start < g_last_pkt_ms) start = g_last_pkt_ms;
+            uint64_t span = now - start;
+            if (span > 50) span = 50;   /* never burst */
+            uint32_t frames = (uint32_t)(span * RATE / 1000);
             if (frames > 2400) frames = 2400;
             if (frames)
+            {
                 write_to_rings(zeros, frames);  /* master_written += too */
+                g_last_synth_ms = start + (uint64_t)frames * 1000 / RATE;
+            }
         }
-        g_last_synth_ms = now;
     }
 }
 
@@ -1652,6 +1733,16 @@ static void cleanup_all()
     }
     app.devices.clear();
 
+    /* restore the source's mute state if --mute-source changed it */
+    if (app.src_muted_by_us)
+    {
+        source_mute_set(app.src_prev_muted);
+        app.src_muted_by_us = false;
+        fprintf(stdout, "[main] source mute restored (%s)\n",
+                app.src_prev_muted ? "it was muted before" : "unmuted");
+        fflush(stdout);
+    }
+
     stop_capture();
 
     if (app.enumerator)
@@ -1673,6 +1764,10 @@ int main(int argc, char *argv[])
 {
     auto delays = parse_delay_args(argc, argv);
     int rc = 0;
+
+    for (int i = 1; i < argc; i++)
+        if (!strcmp(argv[i], "--mute-source"))
+            app.mute_source = true;
 
     /* refuse to run twice — overlapping instances fight over routing */
     HANDLE mtx = CreateMutexW(nullptr, TRUE,
@@ -1756,6 +1851,24 @@ int main(int argc, char *argv[])
         cleanup_all();
         if (mtx) CloseHandle(mtx);
         return 1;
+    }
+
+    /* --mute-source: silence the source so only the buds are audible
+       (Win11 loopback tap is before the mute — capture keeps the audio) */
+    if (app.mute_source && !app.src_muted_by_us)
+    {
+        bool was_muted = false;
+        app.src_prev_muted = source_mute_get(&was_muted) ? was_muted : false;
+        if (source_mute_set(true))
+        {
+            app.src_muted_by_us = true;
+            fprintf(stdout, "[main] source \"%s\" muted - only the buds are audible\n",
+                    app.src_name.c_str());
+        }
+        else
+            fprintf(stderr, "[main] --mute-source: could not mute \"%s\"\n",
+                    app.src_name.c_str());
+        fflush(stdout);
     }
 
     /* one playback stream per earbud */
