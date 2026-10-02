@@ -1885,6 +1885,25 @@ static void print_usage()
         "to the exe, so a tuned pair starts correct on the next run.\n\n");
     fflush(stdout);
 }
+/* --- double-click friendliness ------------------------------------------------
+ * When the console hosts ONLY this process the window was created by
+ * Explorer (user double-clicked the .exe): fatal errors and the final quit
+ * would otherwise flash and vanish before they can be read, so we wait for
+ * a key first.  When launched from a .bat / cmd.exe, cmd.exe is attached to
+ * the same console (2 processes) and we stay quiet - the launcher shows its
+ * own message.  Scripted runs (--help/--list/--seconds) never pause.       */
+static bool console_is_root()
+{
+    DWORD list[2];
+    return GetConsoleProcessList(list, 2) == 1;
+}
+static void pause_if_root(bool root)
+{
+    if (!root) return;
+    fprintf(stdout, "\nPress any key to close...\n");
+    fflush(stdout);
+    _getch();
+}
 int main(int argc, char *argv[])
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -1896,6 +1915,8 @@ int main(int argc, char *argv[])
     }
     g_silent_source = !flags.audible_source;
     g_run_seconds   = flags.seconds;
+    bool root_console = console_is_root() &&
+                       !flags.list && flags.seconds <= 0;
     int rc = 0;
     HANDLE mtx = CreateMutexW(nullptr, TRUE,
                               L"Local\\pipewire_sync_singleton");
@@ -1906,12 +1927,14 @@ int main(int argc, char *argv[])
             "Stop it first (close its window or Ctrl+C) — two instances "
             "would fight over routing.\n");
         CloseHandle(mtx);
+        pause_if_root(root_console);
         return 1;
     }
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(hr))
     {
         fprintf(stderr, "CoInitializeEx failed: 0x%08lx\n", (unsigned long)hr);
+        pause_if_root(root_console);
         return 1;
     }
     timeBeginPeriod(1);
@@ -1926,6 +1949,7 @@ int main(int argc, char *argv[])
                 (unsigned long)hr);
         cleanup_all();
         if (mtx) CloseHandle(mtx);
+        pause_if_root(root_console);
         return 1;
     }
     fprintf(stdout, "%s (Windows/WASAPI port)\n", OUR_APP_NAME);
@@ -1948,6 +1972,7 @@ int main(int argc, char *argv[])
             "  (check in Settings > Bluetooth & devices)\n");
         cleanup_all();
         if (mtx) CloseHandle(mtx);
+        pause_if_root(root_console);
         return 1;
     }
     for (auto &kv : flags.delays)
@@ -1964,12 +1989,14 @@ int main(int argc, char *argv[])
     {
         cleanup_all();
         if (mtx) CloseHandle(mtx);
+        pause_if_root(root_console);
         return 1;
     }
     if (!start_capture())
     {
         cleanup_all();
         if (mtx) CloseHandle(mtx);
+        pause_if_root(root_console);
         return 1;
     }
     if (g_silent_source && source_silence_self_test() == 0)
@@ -2004,5 +2031,6 @@ int main(int argc, char *argv[])
     main_loop();
     cleanup_all();
     if (mtx) CloseHandle(mtx);
+    pause_if_root(root_console);
     return rc;
 }
