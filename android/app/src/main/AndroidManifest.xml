@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Discovery + streaming over the hotspot LAN. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Audio capture (master) uses MediaProjection; no RECORD_AUDIO needed
+         for AudioPlaybackCapture of other apps' output. Foreground-service
+         types declare what each service does (Android 14+). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Keep CPU awake while streaming. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Bluetooth: master plays to its own bud through normal routing;
+         clients each play to one bud. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <application
+        android:label="SyncWifi"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".MasterService"
+            android:foregroundServiceType="mediaPlayback|mediaProjection" />
+        <service
+            android:name=".ClientService"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>

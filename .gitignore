@@ -1,1 +1,13 @@
 notes
+# Android build outputs (generated, never commit)
+android/.gradle/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+*.apk
+# Desktop prototype artifacts
+sync_master
+sync_client
+master.wav
+client.wav
+client.log

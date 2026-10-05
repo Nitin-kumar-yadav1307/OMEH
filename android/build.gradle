@@ -1,0 +1,6 @@
+// Top-level build file: SDK versions + plugin deps only. Per-module config
+// lives in app/build.gradle. Open this `android/` folder in Android Studio.
+plugins {
+    id("com.android.application") version "8.5.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+}
