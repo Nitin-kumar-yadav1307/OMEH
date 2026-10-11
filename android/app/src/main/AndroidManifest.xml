@@ -1,23 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Discovery + streaming over the hotspot LAN. -->
+    <!-- Wi-Fi Direct P2P (Group Owner / Client). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Android 13+ (API 33): required for Wi-Fi Direct peer discovery.
+         neverForLocation: we only use P2P for networking, never to derive
+         the device's location. -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
-    <!-- Audio capture (master) uses MediaProjection; no RECORD_AUDIO needed
-         for AudioPlaybackCapture of other apps' output. Foreground-service
-         types declare what each service does (Android 14+). -->
+    <!-- QR "SCAN TO JOIN" camera (zxing-android-embedded declares it too;
+         listed here explicitly because we launch its scanner directly). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Audio capture (master) via MediaProjection; no RECORD_AUDIO needed. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Keep CPU awake while streaming. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Bluetooth: master plays to its own bud through normal routing;
-         clients each play to one bud. -->
+    <!-- Bluetooth: master plays to its own bud through normal routing. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <uses-feature android:name="android.hardware.wifi.p2p" android:required="true" />
+
     <application
+        android:name=".SyncWifiApp"
         android:label="SyncWifi"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
@@ -28,6 +43,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- On-device crash viewer. Runs in its own :crash process so it
+             survives the death of the crashing main process. -->
+        <activity
+            android:name=".CrashActivity"
+            android:exported="false"
+            android:process=":crash" />
 
         <service
             android:name=".MasterService"

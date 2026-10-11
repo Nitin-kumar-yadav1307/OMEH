@@ -11,3 +11,6 @@ sync_client
 master.wav
 client.wav
 client.log
+
+# stale editor backups (old copies of fixed sources)
+*.bak

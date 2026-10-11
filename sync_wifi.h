@@ -39,9 +39,29 @@
 #define SYNC_WIFI_DRIFT_LOOP_TAU 40.0   /* s, closed-loop time constant */
 #define SYNC_WIFI_DRIFT_KP (1.0/((double)SYNC_WIFI_RATE*SYNC_WIFI_DRIFT_LOOP_TAU))
 #define SYNC_WIFI_DRIFT_MAX_PPM 500.0   /* clamp on resampler ratio */
-#define SYNC_WIFI_HARD_SYNC_FRAMES 2400.0 /* ~50ms: jump instead of warp */
-#define SYNC_WIFI_ALIGN_BASE_MS 40.0
+#define SYNC_WIFI_HARD_SYNC_FRAMES 9600.0 /* ~200ms: jump only on massive backlog */
+#define SYNC_WIFI_ALIGN_BASE_MS 150.0
 #define SYNC_WIFI_ALIGN_MAX_MS 350.0
+
+/* Adaptive jitter buffer (client side).
+ *
+ * The network buffer is the only latency term we actually control, and it has
+ * to cover the WORST WiFi burst on the link - so any fixed value is wrong in
+ * one direction: 150 ms adds audible lag, 40 ms breaks the audio on a real
+ * phone-to-phone link. Instead the client measures itself (AIMD, as WebRTC's
+ * congestion control does):
+ *
+ *   underrun (ring emptied) -> grow immediately        (fast up, audio first)
+ *   3 s with no underrun    -> give a little back      (slow down, latency)
+ *
+ * Bounded so it can never regress into the breaking regime or grow absurd.
+ * On a stable link it walks down to the floor and stays there; walk away from
+ * the phone and it climbs back just enough to survive the extra jitter. */
+#define SYNC_WIFI_TARGET_FLOOR_MS  40.0
+#define SYNC_WIFI_TARGET_CEIL_MS  250.0
+#define SYNC_WIFI_TARGET_GROW_MS   15.0  /* added per underrun          */
+#define SYNC_WIFI_TARGET_SHRINK_MS 10.0  /* removed per clean window    */
+#define SYNC_WIFI_TARGET_ADAPT_SEC  2.0
 
 #pragma pack(push,1)
 struct SyncWifiPacket {
