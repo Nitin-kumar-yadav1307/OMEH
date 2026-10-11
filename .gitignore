@@ -14,3 +14,4 @@ client.log
 
 # stale editor backups (old copies of fixed sources)
 *.bak
+archive/
