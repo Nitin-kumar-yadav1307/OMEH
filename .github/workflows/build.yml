@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build pipewire_sync_win.exe (MSVC)
-        shell: cmd /C
+        shell: cmd
         run: |
           cd /d %GITHUB_WORKSPACE%
           where cl.exe >nul 2>&1 || (
