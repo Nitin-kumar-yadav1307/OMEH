@@ -1,17 +1,38 @@
+# --- local notes / personal scratch ---
 notes
-# Android build outputs (generated, never commit)
+archive/
+
+# --- Android build outputs (generated, never commit) ---
 android/.gradle/
 android/app/build/
 android/app/.cxx/
 android/local.properties
 *.apk
-# Desktop prototype artifacts
-sync_master
-sync_client
-master.wav
-client.wav
-client.log
+*.aab
 
-# stale editor backups (old copies of fixed sources)
+# --- desktop build outputs (always build out-of-source into build/) ---
+build/
+desktop/build/
+**/cmake-build-*/
+
+# --- compiled binaries: never commit executables ---
+*.exe
+*.pdb
+*.o
+*.obj
+*.so
+*.out
+# Linux binaries have no extension, so name them explicitly.
+desktop/pipewire_sync
+desktop/pipewire_test
+desktop/sample
+desktop/tools/sync_master
+desktop/tools/sync_client
+
+# --- runtime artifacts: captured audio and logs ---
+*.wav
+*.log
+
+# --- editor backups ---
 *.bak
-archive/
+*~

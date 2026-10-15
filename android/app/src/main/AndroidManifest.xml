@@ -36,7 +36,7 @@
         android:label="SyncWifi"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -47,15 +47,15 @@
         <!-- On-device crash viewer. Runs in its own :crash process so it
              survives the death of the crashing main process. -->
         <activity
-            android:name=".CrashActivity"
+            android:name=".ui.CrashActivity"
             android:exported="false"
             android:process=":crash" />
 
         <service
-            android:name=".MasterService"
+            android:name=".stream.MasterService"
             android:foregroundServiceType="mediaPlayback|mediaProjection" />
         <service
-            android:name=".ClientService"
+            android:name=".stream.ClientService"
             android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>

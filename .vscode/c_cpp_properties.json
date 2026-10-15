@@ -1,0 +1,20 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Linux (pipewire)",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/pipewire-0.3",
+                "/usr/include/spa-0.2"
+            ],
+            "defines": [
+                "_REENTRANT"
+            ],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ]
+}
