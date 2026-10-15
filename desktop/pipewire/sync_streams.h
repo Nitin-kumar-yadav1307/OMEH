@@ -42,7 +42,7 @@ static void on_capture_process(void *userdata)
      * multi-hundred-ms latency spike when playback starts).
      */
     for (DeviceOut *dev : app.devices)
-        if (!dev->measuring)
+        if (!dev->measuring && !dev->dropped)
             dev->ring.write_frames(samples, frames);
 
     app.master_written += frames;

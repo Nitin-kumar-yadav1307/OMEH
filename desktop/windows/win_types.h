@@ -111,6 +111,8 @@ struct DeviceOut
     double   ratio   = 1.0;
     uint64_t written = 0;
     double   extra_delay_ms = 0.0;
+    bool     muted   = false;   /* WASAPI master mute state */
+    double   vol     = 100.0;   /* last known volume percent (0-100) */
     bool     manual_trim    = false;
     bool     measuring      = true;
     double   meas_ema       = 0.0;
@@ -176,3 +178,9 @@ static uint64_t g_click_from = 0;
 static void print_usage();
 static void trim_save();
 static double default_target_level(const DeviceOut *dev);
+/* win_ui.h (included last) owns the --ui machine channel; these are declared
+   early so win_health.h (status mirror) and win_main.h (stdin poll) can call
+   them. The flag itself lives here next to `app`. */
+static bool g_ui_mode = false;
+static void win_ui_poll();
+static void win_ui_emit_status();

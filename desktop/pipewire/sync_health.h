@@ -122,9 +122,12 @@ static void on_health_timer(void *userdata, uint64_t expirations)
     if (!app.capture && app.virtual_sink_id != 0)
         start_capture(app.virtual_sink_id);
 
-    /* (re)start playback streams */
+    /* (re)start playback streams — but never a GUI-dropped one: its silence
+       is intentional, and restarting it would undo the user's disconnect. */
     for (DeviceOut *dev : app.devices)
     {
+        if (dev->dropped)
+            continue;
         if (!dev->stream)
         {
             if (start_playback(dev))
@@ -156,7 +159,7 @@ static void on_health_timer(void *userdata, uint64_t expirations)
 
         bool measured_all = !app.devices.empty();
         for (DeviceOut *dev : app.devices)
-            if (dev->stream && dev->meas_count == 0)
+            if (!dev->dropped && dev->stream && dev->meas_count == 0)
                 measured_all = false;
 
         /* also stop if the devices never report anything (timeout) */
@@ -297,5 +300,9 @@ static void on_health_timer(void *userdata, uint64_t expirations)
         app.prev_master = app.master_written;
     }
     fflush(stdout);
+
+    /* --ui: one machine-readable status block per tick, after the human log */
+    if (ui_mode)
+        ui_emit_status();
 }
 

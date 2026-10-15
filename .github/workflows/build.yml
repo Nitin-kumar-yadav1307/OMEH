@@ -1,0 +1,130 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake libpipewire-0.3-dev libspa-0.2-dev libsdl2-dev libgl-dev libegl-dev libx11-dev libxext-dev
+
+      - name: Configure + build (Linux)
+        run: |
+          cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build desktop/build -j
+
+      - name: Run self-test
+        run: desktop/build/sync_selftest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: desktop/build
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build pipewire_sync_win.exe (MSVC)
+        shell: cmd /C
+        run: |
+          cd /d %GITHUB_WORKSPACE%
+          where cl.exe >nul 2>&1 || (
+              for /f "tokens=*" %%I in (
+                  "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+                  -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+                  -find "VC\Auxiliary\Build\vcvars64.bat"
+              ) do (
+                  if exist "%%I" call "%%I"
+              )
+          )
+          if not exist "pipewire_sync_win.exe" (
+              where cl.exe >nul 2>&1
+              if errorlevel 1 (
+                  echo.
+                  echo  [run_win] MSVC not found. Install Build Tools / Desktop dev with C++.
+                  echo.
+                  exit /b 1
+              )
+          )
+          echo [run_win] building pipewire_sync_win.exe ...
+          cl /nologo /W4 /O2 /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:desktop\windows\pipewire_sync_win.exe
+          if errorlevel 1 (
+              echo [run_win] BUILD FAILED
+              exit /b 1
+          )
+          echo.
+          echo [run_win] built: desktop\windows\pipewire_sync_win.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifact
+          path: desktop\windows\pipewire_sync_win.exe
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Point local.properties at the CI SDK
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Assemble debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --console=plain
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-artifact
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  publish-assets:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [ linux, windows, android ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release (draft) + attach binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/linux-artifacts/desktop/build/sync_gui
+            artifacts/linux-artifacts/desktop/build/sync_master
+            artifacts/linux-artifacts/desktop/build/sync_client
+            artifacts/linux-artifacts/desktop/build/sync_selftest
+            artifacts/linux-artifacts/desktop/build/pipewire_sync
+            artifacts/windows-artifact/desktop/windows/pipewire_sync_win.exe
+            artifacts/android-artifact/android/app/build/outputs/apk/debug/app-debug.apk
+          draft: true
+          prerelease: false
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}

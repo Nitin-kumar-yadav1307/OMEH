@@ -26,8 +26,10 @@ endforeach()
 # Unit tests for the shared sync engine. Pure math, no I/O, no phones -
 # this is what makes the drift/jitter policy debuggable without deploying
 # to two handsets. Run it after any change to protocol/.
+# ui_protocol.h (engine <-> GUI line protocol) lives in desktop/, so that
+# dir is on the include path too - the protocol round-trip tests need it.
 add_executable(sync_selftest tools/sync_selftest.cpp)
-target_include_directories(sync_selftest PRIVATE ${PROTOCOL_DIR})
+target_include_directories(sync_selftest PRIVATE ${PROTOCOL_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(sync_selftest PRIVATE -Wall -Wextra)
 add_test(NAME sync_selftest COMMAND sync_selftest)
 enable_testing()
@@ -71,3 +73,36 @@ endif()
 
 # sample is a throwaway capture sanity check from early bring-up.
 add_executable(sample pipewire/sample.cpp)
+
+# ---------------------------------------------------------------------------
+# sync_gui: standalone Dear ImGui monitor/control panel (Linux).
+#
+# Owns pipewire_sync as a `--ui` child and talks to it over pipes
+# (desktop/ui_protocol.h). Guarded on SDL2 + GL so a minimal configure
+# still succeeds - without them only the engine/tools build.
+# ---------------------------------------------------------------------------
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/imgui)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
+    pkg_check_modules(GL QUIET IMPORTED_TARGET gl)
+endif()
+if(SDL2_FOUND AND GL_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
+    add_executable(sync_gui
+        gui/sync_gui.cpp
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+    # Each backend includes its own header as "backends/..." (see
+    # sync_gui.cpp), so the imgui root must be on the path; SDL2 comes
+    # from the imported target.
+    target_include_directories(sync_gui PRIVATE ${IMGUI_DIR})
+    target_link_libraries(sync_gui PRIVATE PkgConfig::SDL2 PkgConfig::GL)
+    target_compile_options(sync_gui PRIVATE -Wall -O2)
+else()
+    message(STATUS "SDL2/GL/ImGui missing - skipping sync_gui "
+                   "(install libsdl2-dev + libgl-dev; ImGui is vendored)")
+endif()

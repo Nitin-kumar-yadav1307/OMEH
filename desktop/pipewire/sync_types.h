@@ -130,8 +130,22 @@ struct DeviceOut
     /* logged once when this device becomes audible */
     bool   audible_logged = false;
 
+    /* GUI "disconnect" (connect 0): our playback stream is dropped and the
+       ring is no longer fed, but the registry entry is KEPT so a later
+       connect 1 resumes without a registry round-trip. This is ours alone —
+       a physically vanished bud additionally gets `gone` from the registry
+       path, which always wins. */
+    bool   dropped = false;
+
     /* registry removal flag */
     bool   gone = false;
+
+    /* GUI-visible state, echoed back as #D lines so the GUI can show the
+       real sink state and toggle each control back and forth. These are
+       updated by ui_apply_mute / ui_apply_volume / ui_set_connected. */
+    bool   muted   = false;   /* sink currently muted            */
+    bool   conn    = true;    /* stream attached (false = dropped) */
+    double   vol     = 100.0;   /* last known volume percent       */
 };
 
 /* ------------------------------------------------------------------ */
@@ -178,4 +192,17 @@ static double default_target_level(const DeviceOut *dev);
 static App app;
 
 static void reroute_clients();   /* forward decl (defined below) */
+
+/* ------------------------------------------------------------------ */
+/* --ui machine mode (see sync_ui.h)                                   */
+/*                                                                     */
+/* When enabled the engine writes machine-readable status lines (one    */
+/* per tick, each starting '#') to stdout and reads GUI commands from    */
+/* stdin, polled on the main PipeWire loop — never on the RT path. The   */
+/* default (no --ui) behaviour is completely unchanged.                  */
+/* ------------------------------------------------------------------ */
+static bool ui_mode = false;
+static void ui_emit_status();    /* defined in sync_ui.h */
+static void ui_setup();          /* defined in sync_ui.h */
+
 

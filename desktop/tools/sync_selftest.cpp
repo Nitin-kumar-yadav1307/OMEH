@@ -11,6 +11,7 @@
 // clamp + hard-sync threshold, AIMD jitter policy, and a closed-loop
 // convergence check that drives the controller the way native-lib.cpp does.
 #include "sync_wifi.h"
+#include "ui_protocol.h"   // desktop line protocol: engine <-> GUI
 
 #include <cstdio>
 #include <cstdint>
@@ -223,12 +224,80 @@ static void test_closed_loop() {
     CHECK(jitter.target_ms <= 60.0);
 }
 
+// --- ui_protocol.h: engine <-> GUI line protocol round-trip ---------------
+// The GUI spawns the engine over pipes, so this protocol is the ONLY thing
+// that ties them together. Round-tripping format -> parse proves both sides
+// agree without needing an audio device or a window.
+static void test_ui_protocol() {
+    // summary round-trip
+    UiSummary s; s.aligning = 1; s.devices = 2; s.ref_ms = 182.5; s.master = 987654;
+    std::string sl = ui_format_summary(s);
+    CHECK(ui_classify(sl) == UI_LINE_STATUS);
+    UiSummary s2;
+    CHECK(ui_parse_summary(sl, &s2));
+    CHECK(s2.aligning == 1 && s2.devices == 2 && s2.master == 987654);
+    CHECK_NEAR(s2.ref_ms, 182.5, 1e-6);
+
+    // device round-trip, incl. a name with spaces and '=' (common in BT names)
+    UiDeviceStatus d;
+    d.idx = 3; d.lat = 201.75; d.off = -12.25; d.ratio = 1.000123;
+    d.buf = 4096; d.underruns = 7; d.trim = -3.5; d.meas = true;
+    d.name = "WH-1000XM4 = main (L)";
+    std::string dl = ui_format_device(d);
+    CHECK(ui_classify(dl) == UI_LINE_STATUS);
+    UiDeviceStatus d2;
+    CHECK(ui_parse_device(dl, &d2));
+    CHECK(d2.idx == 3 && d2.buf == 4096 && d2.underruns == 7 && d2.meas);
+    CHECK_NEAR(d2.lat, 201.75, 1e-6);
+    CHECK_NEAR(d2.off, -12.25, 1e-6);
+    CHECK_NEAR(d2.ratio, 1.000123, 1e-9);
+    CHECK_NEAR(d2.trim, -3.5, 1e-6);
+    CHECK(d2.name == "WH-1000XM4 = main (L)");
+
+    // a human log line must NOT be classified as machine data
+    CHECK(ui_classify("  dev 0 bud_L  latency= 180.1 ms") == UI_LINE_OTHER);
+    CHECK(ui_classify("[align] done") == UI_LINE_OTHER);
+    CHECK(ui_classify("") == UI_LINE_OTHER);
+
+    // ack lines
+    CHECK(ui_classify(ui_format_ack("pong")) == UI_LINE_STATUS);
+
+    // command parsing: no-arg verbs
+    CHECK(ui_parse_command("ping").op  == UI_CMD_PING);
+    CHECK(ui_parse_command("click").op == UI_CMD_CLICK);
+    CHECK(ui_parse_command("quit").op  == UI_CMD_QUIT);
+    // leading/trailing whitespace + CRLF tolerated
+    CHECK(ui_parse_command("  ping \r\n").op == UI_CMD_PING);
+
+    // indexed verbs with a value
+    UiCommand t = ui_parse_command("trim 2 -3.5");
+    CHECK(t.op == UI_CMD_TRIM && t.idx == 2);
+    CHECK_NEAR(t.value, -3.5, 1e-9);
+    UiCommand m = ui_parse_command("mute 0 1");
+    CHECK(m.op == UI_CMD_MUTE && m.idx == 0);
+    CHECK_NEAR(m.value, 1.0, 1e-9);
+    UiCommand sel = ui_parse_command("select 1");
+    CHECK(sel.op == UI_CMD_SELECT && sel.idx == 1);
+
+    // malformed / unknown -> NONE, never a partial parse
+    CHECK(ui_parse_command("").op        == UI_CMD_NONE);
+    CHECK(ui_parse_command("   ").op     == UI_CMD_NONE);
+    CHECK(ui_parse_command("frobnicate 1 2").op == UI_CMD_NONE);
+    CHECK(ui_parse_command("trim").op    == UI_CMD_NONE);   // missing idx
+    CHECK(ui_parse_command("trim 1").op  == UI_CMD_NONE);   // missing value
+    CHECK(ui_parse_command("mute x y").op == UI_CMD_NONE);  // bad number
+
+    // a status line must never parse as a command and vice versa
+    CHECK(ui_parse_command(sl).op == UI_CMD_NONE);
+}
+
 int main() {
     test_wire();
     test_ring();
     test_drift();
     test_jitter();
     test_closed_loop();
+    test_ui_protocol();
 
     if (g_fails == 0) {
         std::printf("sync_selftest: %d checks, all passed\n", g_checks);

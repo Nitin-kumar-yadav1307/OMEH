@@ -54,8 +54,9 @@ cmake --build desktop/build -j
 ./desktop/build/sync_client   # in another
 ```
 
-**Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md). No
-programming needed: double-click `START_HERE.bat`.
+**Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md). Build once
+with `desktop/windows/run_win.bat` (MSVC), then double-click `START_HERE.bat`;
+or download a prebuilt `pipewire_sync_win.exe` from a GitHub Release.
 
 ## Design notes
 
@@ -84,7 +85,55 @@ programming needed: double-click `START_HERE.bat`.
 |---------|-------|
 | Android | API 29+ (Android 10) — `AudioPlaybackCapture` |
 | Linux   | `libpipewire-0.3-dev`, `libspa-0.2-dev`, CMake ≥ 3.16, C++17 |
-| Windows | MSYS2 (ucrt64) with `g++`, or cross-compile with `zig c++` |
+| Windows | Visual Studio 2022 "Build Tools" / "Desktop development with C++" (MSVC). One-click build: `desktop/windows/run_win.bat` |
+
+## One-shot CI build (all three targets)
+
+GitHub Actions builds the Linux, Windows, and Android targets from this repository
+on every push to `main`, on every pull request, and on every version tag (`v*`).
+The single workflow file is:
+
+`.github/workflows/build.yml`
+
+- **Linux** (`ubuntu-latest`): `cmake` → `sync_gui`, `sync_master`, `sync_client`,
+  `sync_selftest` (self-test always runs), `pipewire_sync`.
+- **Windows** (`windows-latest`): MSVC (`cl.exe`) → `pipewire_sync_win.exe`.
+- **Android** (`ubuntu-latest`): Gradle → `app-debug.apk`.
+
+```bash
+# From the repo root. Each target runs independently on CI.
+
+# Linux:
+cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release
+cmake --build desktop/build -j
+./desktop/build/sync_selftest
+
+# Windows (one-click batch; needs Build Tools with MSVC):
+desktop/windows/run_win.bat
+
+# Android:
+cd android && ./gradlew assembleDebug
+```
+
+## "Download and run" on release
+
+When a version tag like `v1.2.3` is pushed, GitHub Actions turns that tag into a
+**draft** GitHub Release and attaches the binaries built for it:
+
+| Asset | Built by |
+|-------|----------|
+| `pipewire_sync_win.exe` (Windows) | CI `windows` job |
+| `sync_gui`, `sync_master`, `sync_client`, `sync_selftest`, `pipewire_sync` (Linux) | CI `linux` job |
+| `app-debug.apk` (Android) | CI `android` job |
+
+Put the prebuilt binaries in front of the people who need them:
+- **Windows**: download `pipewire_sync_win.exe`, double-click `START_HERE.bat`.
+- **Linux**: run the binaries from the Release page (or your distro packages `pipewire_sync`/`sync_gui`).
+- **Android**: install `app-debug.apk` on both phones.
+
+Draft releases are private until you publish them, so you can review the binaries
+before anyone downloads them.
+
 
 ## License
 

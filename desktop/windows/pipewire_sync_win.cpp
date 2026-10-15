@@ -20,6 +20,7 @@
  *   win_render.h    real-time render feed (drift resampler + alignment)
  *   win_poll.h      alignment finish, device polling, interactive controls
  *   win_health.h    status line + periodic health check
+ *   win_ui.h        optional "--ui" machine channel for the desktop GUI
  *   win_main.h      main loop, cleanup, CLI parsing, console control
  *
  * Build (unchanged - quoted includes resolve next to this file):
@@ -38,6 +39,7 @@
 #include "win_poll.h"
 #include "win_health.h"
 #include "win_main.h"
+#include "win_ui.h"
 
 int main(int argc, char *argv[])
 {
@@ -50,6 +52,7 @@ int main(int argc, char *argv[])
     }
     g_silent_source = !flags.audible_source;
     g_run_seconds   = flags.seconds;
+    g_ui_mode       = flags.ui;
     bool root_console = console_is_root() &&
                        !flags.list && flags.seconds <= 0;
     int rc = 0;

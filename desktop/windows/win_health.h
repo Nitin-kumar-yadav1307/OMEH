@@ -125,6 +125,10 @@ static void health_tick(uint64_t now)
         print_status(now);
     else
         fflush(stdout);
+    /* --ui: machine mirror of the tick above (and of the aligning phase,
+       so the GUI shows progress instead of silence before lock). */
+    if (g_ui_mode)
+        win_ui_emit_status();
 }
 static BOOL WINAPI on_console_ctrl(DWORD type)
 {

@@ -26,6 +26,7 @@ static void main_loop()
         }
         drain_capture();
         poll_keyboard();
+        win_ui_poll();   /* no-op unless --ui; never blocks the 2 ms tick */
         if (g_click_from &&
             app.master_written > g_click_from +
                                 (uint64_t)CLICK_BURSTS * CLICK_PERIOD + 4800)
@@ -83,6 +84,7 @@ struct Flags
     bool help           = false;
     bool audible_source = false;
     int  seconds        = 0;
+    bool ui             = false;
 };
 static Flags parse_args(int argc, char *argv[])
 {
@@ -94,6 +96,7 @@ static Flags parse_args(int argc, char *argv[])
         if (a == "--list" || a == "-l") { f.list = true; continue; }
         if (a == "--help" || a == "-h") { f.help = true; continue; }
         if (a == "--seconds" && i + 1 < argc) { f.seconds = atoi(argv[++i]); continue; }
+        if (a == "--ui") { f.ui = true; continue; }
         const char *colon = strchr(argv[i], ':');
         if (!colon) continue;
         f.delays[atoi(argv[i])] = atof(colon + 1);
@@ -114,6 +117,8 @@ static void print_usage()
         "                     self-test that proves capture survives it.\n"
         "  --list, -l         list the output endpoints and exit\n"
         "  --seconds N        stop cleanly after N seconds (quick test)\n"
+"  --ui               machine mode for the desktop GUI: emit '#'\n"
+"                     status lines on stdout, read commands on stdin\n"
         "  -h, --help         this text\n"
         "  <index>:<ms>       per-device extra delay, e.g. 1:25\n\n"
         "Keys while running:\n"

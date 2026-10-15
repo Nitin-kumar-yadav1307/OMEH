@@ -64,6 +64,7 @@
  *   sync_pulse.h     pactl routing / virtual sink
  *   sync_registry.h  Bluetooth sink discovery + single-instance guard
  *   sync_health.h    latency alignment + 1 Hz health tick
+ *   sync_ui.h        optional "--ui" machine channel for the desktop GUI
  *
  * The original "Build:" command above still works - quoted includes are
  * resolved next to this file, and CMake compiles just this one .cpp.
@@ -76,6 +77,7 @@
 #include "sync_pulse.h"
 #include "sync_registry.h"
 #include "sync_health.h"
+#include "sync_ui.h"
 /* ------------------------------------------------------------------ */
 /* main                                                                */
 /* ------------------------------------------------------------------ */
@@ -93,6 +95,16 @@ int main(int argc, char *argv[])
     pw_init(&argc, &argv);
 
     auto delays = parse_delay_args(argc, argv);
+
+    /*
+     * --ui: opt-in machine mode for the desktop GUI. Human logs stay exactly
+     * as they are; status additionally goes to stdout as '#'-prefixed lines
+     * and stdin becomes a command channel. Without the flag nothing changes.
+     * ("--ui" has no ':', so parse_delay_args above already ignores it.)
+     */
+    for (int i = 1; i < argc; i++)
+        if (strcmp(argv[i], "--ui") == 0)
+            ui_mode = true;
 
     app.loop = pw_main_loop_new(nullptr);
     if (!app.loop)
@@ -156,6 +168,11 @@ int main(int argc, char *argv[])
         fprintf(stderr,
                 "No Bluetooth sinks found. Are the earbuds connected?\n"
                 "  (check with: pw-cli ls Node | grep -B2 -A4 bluez)\n");
+        /* --ui: still emit a devices=0 snapshot so the GUI learns the pipe
+           works and there is simply nothing connected, rather than hanging
+           on a silent engine that is about to exit. */
+        if (ui_mode)
+            ui_emit_status();
         return 1;
     }
 
@@ -223,6 +240,10 @@ int main(int argc, char *argv[])
             "Bluetooth device(s). Ctrl+C to stop.\n\n",
             app.devices.size());
     fflush(stdout);
+
+    /* --ui: watch stdin for GUI commands + emit the first status snapshot.
+       No-op unless the engine was launched with --ui. */
+    ui_setup();
 
     pw_main_loop_run(app.loop);
 

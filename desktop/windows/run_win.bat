@@ -2,28 +2,45 @@
 setlocal
 cd /d "%~dp0"
 
-rem --- find g++: use PATH (MSYS2 ucrt64 shell), fall back to common install ---
-where g++ >nul 2>&1
-if errorlevel 1 (
-    if exist "C:\msys64\ucrt64\bin\g++.exe" (
-        set "PATH=C:\msys64\ucrt64\bin;%PATH%"
-    ) else if exist "C:\msys64\mingw64\bin\g++.exe" (
-        set "PATH=C:\msys64\mingw64\bin;%PATH%"
-    ) else (
-        echo [run_win] g++ not found. Install MSYS2 ucrt64 or run from its shell.
+:: MSVC (Developer Command Prompt) is required: win_config.h compiles
+:: against Windows SDK headers (<mmdeviceapi.h>, <audioclient.h>,
+:: <endpointvolume.h>, <propsys.h>) that MinGW/gcc does NOT ship.
+:: If cl.exe is not already on PATH, locate and initialise the VS env.
+where cl.exe >nul 2>&1 || (
+    for /f "tokens=*" %%I in (
+        "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+        -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+        -find "VC\Auxiliary\Build\vcvars64.bat"
+    ) do (
+        if exist "%%I" call "%%I"
+    )
+)
+
+if not exist "pipewire_sync_win.exe" (
+    where cl.exe >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo  [run_win] MSVC not found.
+        echo  Install "Build Tools" or "Desktop development with C++"
+        echo  from the Visual Studio Installer / https://visualstudio.microsoft.com/downloads/
+        echo  Then rerun this file.
+        echo.
         exit /b 1
     )
 )
 
 echo [run_win] building pipewire_sync_win.exe ...
-g++ -O2 -std=c++17 -Wall pipewire_sync_win.cpp -o pipewire_sync_win.exe ^
-    -lole32 -loleaut32 -luuid -lwinmm
+cl /nologo /W4 /O2 /std:c++17 /DNDEBUG ^
+    pipewire_sync_win.cpp ^
+    /link ole32.lib oleaut32.lib uuid.lib winmm.lib ^
+    /Fe:pipewire_sync_win.exe
 if errorlevel 1 (
-    echo [run_win] build FAILED
+    echo [run_win] BUILD FAILED
     exit /b 1
 )
 
-echo [run_win] starting: pipewire_sync_win.exe %*
 echo.
+echo [run_win] launch: pipewire_sync_win.exe
 pipewire_sync_win.exe %*
 exit /b %ERRORLEVEL%
+
