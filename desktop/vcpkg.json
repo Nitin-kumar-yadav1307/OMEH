@@ -1,8 +1,4 @@
 {
-  // SDL2 for the Windows sync_gui build (same ImGui+SDL2 panel as Linux).
-  // CI bootstraps vcpkg and the CMake toolchain installs this manifest
-  // automatically at configure time; locally `vcpkg install` in desktop/
-  // (or VCPKG_ROOT for run_win.bat) does the same.
   "name": "syncwifi-gui",
   "version-string": "1.0.0",
   "dependencies": [ "sdl2" ]
