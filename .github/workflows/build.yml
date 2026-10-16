@@ -61,7 +61,9 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1
 
       - name: Point local.properties at the CI SDK
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
