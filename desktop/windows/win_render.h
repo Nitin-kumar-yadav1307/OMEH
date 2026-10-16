@@ -68,27 +68,33 @@ static void fill_render(DeviceOut *dev)
         }
         if (!app.aligning && dev->meas_count >= MEASURE_TICKS)
             retarget_late_device(dev);
-        goto commit;
     }
-    if (!dev->started)
+    else
     {
-        if ((double)dev->ring.level() < dev->target_level)
+        if (!dev->started)
+    {
+        if ((double)dev->ring.level() >= dev->target_level)
+        {
+            dev->ring.flush_to((size_t)dev->target_level);
+            dev->started = true;
+            dev->phase   = (double)dev->ring.read;
+            dev->written = 0;
+            dev->ratio   = 1.0;
+        }
+        else
         {
             memset(out, 0, (size_t)frames * FRAME_BYTES);
-            goto commit;
         }
-        dev->ring.flush_to((size_t)dev->target_level);
-        dev->started = true;
-        dev->phase   = (double)dev->ring.read;
-        dev->written = 0;
-        dev->ratio   = 1.0;
     }
+    bool skip_rest = false;
     if (dev->ring.level() == 0)
     {
         memset(out, 0, (size_t)frames * FRAME_BYTES);
         dev->underruns++;
-        goto commit;
+        skip_rest = true;
     }
+    if (!skip_rest)
+    {
     if (!dev->audible_logged)
     {
         dev->audible_logged = true;
@@ -173,6 +179,8 @@ static void fill_render(DeviceOut *dev)
         if (dev->phase > hi) dev->phase = hi;
         dev->ring.advance((size_t)(dev->phase - (double)dev->ring.read));
         dev->phase = (double)dev->ring.read;
+    }
+    }
     }
 commit:
     if (dev->use_mix)
