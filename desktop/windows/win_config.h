@@ -4,10 +4,22 @@
  * Single-TU module, part of pipewire_sync_win.cpp. Included FIRST. Owns
  * WIN32_LEAN_AND_MEAN, the COM/WASAPI headers, the IAudio and MMDevice GUIDs
  * and PROPERTYKEYs, and the RATE/CHANNELS/ring/drift tuning constants.
+ *
+ * _CRT_SECURE_NO_WARNINGS silences the fopen/fopen_s deprecation (C4996)
+ * that this MSVC toolchain emits for win_poll.h's fopen() usage.
+ * _SAL_VERSION 20 asks sal.h (Windows Kits 10 SDK 10.0.26100.0) to use the
+ * SAL 2.0 annotation dialect, which parses cleanly under MSVC 14.51
+ * /std:c++17 where the default dialect trips C2143/C2447 hard parse errors.
  */
 #pragma once
 
 
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+#ifndef _SAL_VERSION
+#define _SAL_VERSION 20
+#endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
