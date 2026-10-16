@@ -161,10 +161,9 @@ static void win_ui_handle_command(const UiCommand &c)
             /* Clamp to a sane GUI range and persist it so the status echo
                and the next run start from this value (registry keeps it
                across sessions on Windows only when we store it). */
-            if (c.value < 0.0) c.value = 0.0;
-            if (c.value > 100.0) c.value = 100.0;
-            dev->vol = c.value;
-            win_ui_set_volume(dev, c.value);
+            const double v = c.value < 0.0 ? 0.0 : (c.value > 100.0 ? 100.0 : c.value);
+            dev->vol = v;
+            win_ui_set_volume(dev, v);
             fprintf(stdout, "%s\n", ui_format_ack("volume ok").c_str());
         }
         else

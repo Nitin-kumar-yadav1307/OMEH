@@ -2,7 +2,7 @@
  * win_config.h — Windows/WASAPI build configuration.
  *
  * Single-TU module, part of pipewire_sync_win.cpp. Included FIRST. Owns
- * WIN32_LEAN_AND_MEAN, the COM/WASAPI headers, the IAudio*/MMDevice GUIDs
+ * WIN32_LEAN_AND_MEAN, the COM/WASAPI headers, the IAudio and MMDevice GUIDs
  * and PROPERTYKEYs, and the RATE/CHANNELS/ring/drift tuning constants.
  */
 #pragma once
@@ -11,6 +11,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#pragma warning(push)
+#pragma warning(disable: 2143) // sal.h parse issue under WIN32_LEAN_AND_MEAN / older toolset
+#pragma warning(disable: 2447) // sal.h parse issue under WIN32_LEAN_AND_MEAN / older toolset
 #include <windows.h>
 #include <mmsystem.h>
 #include <mmreg.h>
@@ -19,6 +22,7 @@
 #include <endpointvolume.h>
 #include <propsys.h>
 #include <propkey.h>
+#pragma warning(pop)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
