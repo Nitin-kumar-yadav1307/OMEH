@@ -41,17 +41,12 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build pipewire_sync_win.exe (MSVC)
-        run: cl /nologo /W4 /O2 /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:desktop\windows\pipewire_sync_win.exe
-
-      - name: Verify exe location
-        run: |
-          dir desktop\
-          dir desktop\windows\
+        run: cl /nologo /W4 /O2 /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:pipewire_sync_win.exe
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifact
-          path: desktop\windows\pipewire_sync_win.exe
+          path: pipewire_sync_win.exe
           if-no-files-found: error
 
   android:
@@ -103,7 +98,7 @@ jobs:
             artifacts/linux-artifacts/desktop/build/sync_client
             artifacts/linux-artifacts/desktop/build/sync_selftest
             artifacts/linux-artifacts/desktop/build/pipewire_sync
-            artifacts/windows-artifact/desktop/windows/pipewire_sync_win.exe
+            artifacts/windows-artifact/pipewire_sync_win.exe
             artifacts/android-artifact/android/app/build/outputs/apk/debug/app-debug.apk
           draft: true
           prerelease: false
