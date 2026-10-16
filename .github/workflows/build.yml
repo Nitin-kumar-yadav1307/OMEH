@@ -36,17 +36,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-
-
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build pipewire_sync_win.exe (MSVC)
         run: cl /nologo /W4 /O2 /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:pipewire_sync_win.exe
 
+      # Same ImGui+SDL2 panel as Linux, driving pipewire_sync_win.exe over
+      # the --ui pipe. vcpkg provides SDL2 (manifest in desktop/, installed
+      # automatically by the toolchain at configure time); OpenGL ships
+      # with the Windows SDK.
+      - name: Setup vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat"
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Build sync_gui.exe (MSVC + vcpkg SDL2)
+        run: |
+          cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake --build desktop/build --config Release --target sync_gui
+          if (!(Test-Path desktop/build/Release/sync_gui.exe)) { Write-Error "sync_gui missing"; exit 1 }
+          copy desktop\build\Release\sync_gui.exe sync_gui.exe
+          # vcpkg links SDL2 dynamically: ship the DLL or the GUI exits with
+          # "SDL2.dll not found" on a clean machine.
+          $dll = Get-ChildItem -Recurse desktop/build/vcpkg_installed -Filter SDL2.dll | Select-Object -First 1
+          if (!$dll) { Write-Error "SDL2.dll not found under desktop/build/vcpkg_installed"; exit 1 }
+          copy $dll.FullName SDL2.dll
+          copy desktop\windows\START_HERE.bat START_HERE.bat
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifact
-          path: pipewire_sync_win.exe
+          path: |
+            pipewire_sync_win.exe
+            sync_gui.exe
+            SDL2.dll
+            START_HERE.bat
           if-no-files-found: error
 
   android:
@@ -101,6 +127,9 @@ jobs:
             artifacts/linux-artifacts/desktop/build/sync_selftest
             artifacts/linux-artifacts/desktop/build/pipewire_sync
             artifacts/windows-artifact/pipewire_sync_win.exe
+            artifacts/windows-artifact/sync_gui.exe
+            artifacts/windows-artifact/SDL2.dll
+            artifacts/windows-artifact/START_HERE.bat
             artifacts/android-artifact/android/app/build/outputs/apk/debug/app-debug.apk
           draft: true
           prerelease: false

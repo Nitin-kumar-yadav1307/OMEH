@@ -9,7 +9,7 @@
  * machine lines ("#S" summary + one "#D" per device); human logs never start
  * with '#', so the GUI splits data from log by prefix alone. stdin <- GUI
  * carries one command per line ("ping", "trim <i> <ms>", "mute <i> <0|1>",
- * "select <i>", "click", "quit").
+ * "volume <i> <pct>", "connect <i> <0|1>", "select <i>", "click", "quit").
  *
  * Polling model: the Windows engine has no fd event loop — main_loop() spins
  * on Sleep(POLL_MS) — so win_ui_poll() is called from the loop each
@@ -84,7 +84,11 @@ static void win_ui_emit_status()
 /* ------------------------------------------------------------------ */
 static void win_ui_set_mute(DeviceOut *dev, bool on)
 {
-    if (!dev || !dev->endpoint) return;
+    if (!dev) return;
+    // Echo the requested state even when the endpoint is gone, so the GUI
+    // checkbox tracks intent and the next status tick reflects it.
+    dev->muted = on;
+    if (!dev->endpoint) return;
     IAudioEndpointVolume *v = nullptr;
     if (SUCCEEDED(dev->endpoint->Activate(IID_IAudioEndpointVolume_,
                                            CLSCTX_ALL, nullptr, (void **)&v)) && v)
@@ -96,17 +100,20 @@ static void win_ui_set_mute(DeviceOut *dev, bool on)
 
 static void win_ui_set_volume(DeviceOut *dev, double pct)
 {
-    if (!dev || !dev->endpoint)
-    {
-        dev->vol = pct < 0.0 ? 0.0 : (pct > 100.0 ? 100.0 : pct);
-        return;
-    }
-    dev->vol = pct < 0.0 ? 0.0 : (pct > 100.0 ? 100.0 : pct);
-    if (dev->vol <= 0.0)
+    if (!dev) return;
+    // Match the Linux ui_apply_volume(): 0% mutes (and echoes muted=1),
+    // positive values unmute and drive the scalar. dev->vol always echoes
+    // the last GUI value so the status line stays truthful.
+    if (pct < 0.0) pct = 0.0;
+    if (pct > 100.0) pct = 100.0;
+    dev->vol = pct;
+    if (pct <= 0.0)
     {
         win_ui_set_mute(dev, true);
         return;
     }
+    win_ui_set_mute(dev, false);
+    if (!dev->endpoint) return;
     IAudioEndpointVolume *v = nullptr;
     if (SUCCEEDED(dev->endpoint->Activate(IID_IAudioEndpointVolume_,
                                            CLSCTX_ALL, nullptr,
@@ -114,7 +121,7 @@ static void win_ui_set_volume(DeviceOut *dev, double pct)
     {
         /* WASAPI device-vector scalars run 0.0-1.0. */
         double s = dev->vol / 100.0;
-        v->SetMasterVolumeLevelScalar(s, nullptr);
+        v->SetMasterVolumeLevelScalar((float)s, nullptr);
         v->Release();
     }
 }
@@ -158,12 +165,9 @@ static void win_ui_handle_command(const UiCommand &c)
         if (c.idx >= 0 && c.idx < (int)app.devices.size())
         {
             DeviceOut *dev = app.devices[(size_t)c.idx];
-            /* Clamp to a sane GUI range and persist it so the status echo
-               and the next run start from this value (registry keeps it
-               across sessions on Windows only when we store it). */
-            const double v = c.value < 0.0 ? 0.0 : (c.value > 100.0 ? 100.0 : c.value);
-            dev->vol = v;
-            win_ui_set_volume(dev, v);
+            // win_ui_set_volume() clamps, echoes vol/muted, and drives the
+            // WASAPI scalar, so the next status tick reflects the GUI value.
+            win_ui_set_volume(dev, c.value);
             fprintf(stdout, "%s\n", ui_format_ack("volume ok").c_str());
         }
         else

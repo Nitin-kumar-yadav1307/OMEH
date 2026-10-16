@@ -19,6 +19,11 @@ struct SrcVol
 };
 static SrcVol g_srcvol;
 static bool   g_silent_source = true;
+/* How source_silence() keeps the room quiet. MUTE is preferred; VOL0 is the
+   fallback for drivers where muting the endpoint also kills the loopback tap
+   (self-test returns 2 in that case). Both are restored by source_restore(). */
+enum SilenceMode { SILENCE_MUTE = 0, SILENCE_VOL0 = 1 };
+static SilenceMode g_silence_mode = SILENCE_MUTE;
 static int    g_run_seconds   = 0;
 static IAudioClient       *g_tt_client = nullptr;
 static IAudioRenderClient *g_tt_render = nullptr;
@@ -59,6 +64,21 @@ static void source_silence()
     if (!g_silent_source) return;
     source_vol_save();
     if (!g_srcvol.vol || g_srcvol.silenced) return;
+    if (g_silence_mode == SILENCE_VOL0)
+    {
+        // Driver kills loopback on mute (self-test == 2): scalar 0 keeps the
+        // tap alive on most drivers while the room stays quiet. Keep mute
+        // OFF so the self-test result stays valid for this session.
+        if (SUCCEEDED(g_srcvol.vol->SetMute(FALSE, nullptr)) &&
+            SUCCEEDED(g_srcvol.vol->SetMasterVolumeLevelScalar(0.0f, nullptr)))
+        {
+            g_srcvol.silenced = true;
+            fprintf(stdout, "[source] volume 0 on \"%s\" — no speaker audio, "
+                            "loopback capture continues\n", app.src_name.c_str());
+            fflush(stdout);
+        }
+        return;
+    }
     if (SUCCEEDED(g_srcvol.vol->SetMute(TRUE, nullptr)))
     {
         g_srcvol.silenced = true;
@@ -194,9 +214,17 @@ static int source_silence_self_test()
     Sleep(150);
     double b = tone_test_run(450);
     g_srcvol.vol->SetMute(FALSE, nullptr);
+    // VOL0 fallback probe: scalar 0 with mute OFF. Some drivers gate the
+    // loopback tap on mute but NOT on the volume scalar, so this is the
+    // last quiet option before giving up and staying audible.
+    g_srcvol.vol->SetMasterVolumeLevelScalar(0.0f, nullptr);
+    double d = tone_test_run(450);
+    // Put the user's level back (not 1.0): the probes already saved the
+    // original, and staying-audible mode must leave the mixer untouched.
+    g_srcvol.vol->SetMasterVolumeLevelScalar(g_srcvol.prev_vol, nullptr);
     tone_test_close();
     fprintf(stdout, "[source] mute self-test: our tone came back at %.4f "
-                    "unmuted / %.4f muted\n", a, b);
+                    "unmuted / %.4f muted / %.4f vol0\n", a, b, d);
     if (a < 0.005)
     {
         fprintf(stdout, "[source] self-test inconclusive — leaving the "
@@ -213,7 +241,20 @@ static int source_silence_self_test()
                         "         it will be muted while we stream, so the "
                         "room stays quiet\n");
         fflush(stdout);
+        g_silence_mode = SILENCE_MUTE;
         return 1;
+    }
+    // Mute kills the tap (b ~= 0). Try scalar-0: quiet iff d survives at a
+    // usable fraction of the unmuted level AND the tap was alive at all.
+    if (d > 0.25 * a)
+    {
+        fprintf(stdout, "[source] muting this device kills the loopback tap, "
+                        "but volume-0 does not ->\n"
+                        "         source volume will sit at 0 while we stream, "
+                        "so the room stays quiet\n");
+        fflush(stdout);
+        g_silence_mode = SILENCE_VOL0;
+        return 2;
     }
     fprintf(stdout, "[source] muting this device WOULD kill the loopback "
                     "capture on this system\n"
@@ -222,6 +263,9 @@ static int source_silence_self_test()
                     "            give us a silent source here. The tone you "
                     "just heard was this test.\n");
     fflush(stdout);
+    // Probes left the endpoint unmuted; hand the user's original mute back
+    // since nothing will be applied on top of it.
+    g_srcvol.vol->SetMute(g_srcvol.prev_mute, nullptr);
     return 0;
 }
 static void print_endpoint_details()

@@ -227,5 +227,8 @@ static bool start_playback(DeviceOut *dev)
         teardown_device(dev);
         return false;
     }
+    // Any stream ever alive: health_tick may un-silence on total dropout,
+    // but never before the first stream (else boot leaks speaker audio).
+    app.had_stream = true;
     return true;
 }

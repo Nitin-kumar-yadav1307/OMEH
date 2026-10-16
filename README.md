@@ -55,8 +55,11 @@ cmake --build desktop/build -j
 ```
 
 **Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md). Build once
-with `desktop/windows/run_win.bat` (MSVC), then double-click `START_HERE.bat`;
-or download a prebuilt `pipewire_sync_win.exe` from a GitHub Release.
+with `desktop/windows/run_win.bat` (MSVC), then double-click `START_HERE.bat`
+(it opens `sync_gui.exe` when built, else the console engine);
+or download prebuilt `pipewire_sync_win.exe` + `sync_gui.exe` from a GitHub
+Release. `run_win.bat` builds the GUI too when SDL2 is available via vcpkg
+(`vcpkg install sdl2 --triplet x64-windows` + `VCPKG_ROOT` set).
 
 ## Design notes
 
@@ -97,7 +100,8 @@ The single workflow file is:
 
 - **Linux** (`ubuntu-latest`): `cmake` → `sync_gui`, `sync_master`, `sync_client`,
   `sync_selftest` (self-test always runs), `pipewire_sync`.
-- **Windows** (`windows-latest`): MSVC (`cl.exe`) → `pipewire_sync_win.exe`.
+- **Windows** (`windows-latest`): MSVC (`cl.exe`) → `pipewire_sync_win.exe` +
+  `sync_gui.exe` (ImGui+SDL2 panel via vcpkg, drives the engine over `--ui`).
 - **Android** (`ubuntu-latest`): Gradle → `app-debug.apk`.
 
 ```bash
@@ -122,12 +126,13 @@ When a version tag like `v1.2.3` is pushed, GitHub Actions turns that tag into a
 
 | Asset | Built by |
 |-------|----------|
-| `pipewire_sync_win.exe` (Windows) | CI `windows` job |
+| `pipewire_sync_win.exe` + `sync_gui.exe` (Windows) | CI `windows` job |
 | `sync_gui`, `sync_master`, `sync_client`, `sync_selftest`, `pipewire_sync` (Linux) | CI `linux` job |
 | `app-debug.apk` (Android) | CI `android` job |
 
 Put the prebuilt binaries in front of the people who need them:
-- **Windows**: download `pipewire_sync_win.exe`, double-click `START_HERE.bat`.
+- **Windows**: download `pipewire_sync_win.exe` + `sync_gui.exe`, double-click `START_HERE.bat`
+  (opens the GUI when `sync_gui.exe` is present, else the console engine).
 - **Linux**: run the binaries from the Release page (or your distro packages `pipewire_sync`/`sync_gui`).
 - **Android**: install `app-debug.apk` on both phones.
 

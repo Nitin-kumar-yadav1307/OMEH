@@ -101,8 +101,12 @@ static void health_tick(uint64_t now)
         for (DeviceOut *dev : app.devices)
             if (!dev->gone && !dev->failed && dev->client && dev->started)
                 any_stream = true;
+        // Only un-silence on a REAL dropout: streams were up before and all
+        // died (had_stream). At boot no stream has ever started, so restoring
+        // would undo the startup mute/vol0 and leak speaker audio until the
+        // next tick re-silences.
         if (any_stream)             source_silence();
-        else if (g_srcvol.silenced) source_restore();
+        else if (g_srcvol.silenced && app.had_stream) source_restore();
     }
     if (app.aligning)
     {

@@ -137,9 +137,13 @@ int main(int argc, char *argv[])
         pause_if_root(root_console);
         return 1;
     }
-    if (g_silent_source && source_silence_self_test() == 0)
+    int silence_probe = g_silent_source ? source_silence_self_test() : 0;
+    if (g_silent_source && silence_probe == 0)
         g_silent_source = false;
-    if (g_silent_source)
+    // Probe 1 (mute-safe) and 2 (vol0 fallback) both stream quietly; -1 is
+    // inconclusive (no tone at all) so still attempt mute — old behaviour.
+    // Anything else (0) means no quiet mode works -> stay audible.
+    if (g_silent_source && silence_probe != 0)
         source_silence();
     if (g_run_seconds > 0)
         fprintf(stdout, "[main] will stop by itself after %d s\n",

@@ -160,6 +160,7 @@ struct App
     bool     aligning    = true;
     uint64_t align_ticks = 0;
     double   ref_latency_ms = 0.0;
+    bool     had_stream  = false;   /* any playback stream ever started */
     std::map<std::string, double> trim_by_id;
     uint64_t capture_callbacks = 0;
     uint64_t capture_empties   = 0;

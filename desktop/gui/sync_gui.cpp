@@ -14,31 +14,55 @@
  * and the vendored ImGui sources.
  *
  * Build: cmake option in desktop/CMakeLists.txt (needs SDL2 + GL dev files).
- * Run:  ./sync_gui [engine-path]     (default: pipewire_sync next to sync_gui)
+ *   Linux:   ./sync_gui [engine-path]   (default: pipewire_sync next to sync_gui)
+ *   Windows: sync_gui.exe [engine-path] (default: pipewire_sync_win.exe next
+ *            to sync_gui.exe; engine is spawned as "<path> --ui")
  * Keys: Q quits (sends 'quit' first so the engine shuts down gracefully).
  */
 
 #include "../ui_protocol.h"
 
+// We own main() ourselves (SUBSYSTEM:WINDOWS via pragma in main below);
+// SDL_MAIN_HANDLED stops SDL from redefining main to SDL_main (which would
+// need SDL2main + WinMain). Must precede ALL SDL includes, including the
+// transitive one inside imgui_impl_sdl2.h - hence before the imgui headers.
+#ifdef _WIN32
+#define SDL_MAIN_HANDLED
+#endif
+
+#ifdef _WIN32
+// windows.h BEFORE GL/gl.h: the SDK's gl.h needs the WINGDIAPI macros from
+// windows.h, and NOMINMAX keeps windows.h from breaking std::min/max.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include "imgui.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
+// Plain <SDL.h> on both toolchains: the imgui backend includes it the same
+// way, and the include dir comes from the SDL2 targets (vcpkg CONFIG on
+// Windows, pkg-config on Linux) - never hardcode the SDL2/ prefix here.
 #include <SDL.h>
 #include <GL/gl.h>
 
 #include <stdio.h>
+#include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#endif
 
 #include <chrono>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <vector>
+#include <vector>   /* mutable CreateProcess command buffer (Windows) */
 
 /* ------------------------------------------------------------------ */
 /* Engine child process                                              */
@@ -46,10 +70,16 @@
 
 struct EngineProc
 {
-    pid_t pid        = -1;
-    int   to_child   = -1;   /* GUI writes commands here (child stdin)  */
-    int   from_child = -1;   /* GUI reads status+log here (child stdout) */
-    bool  alive      = false;
+#ifdef _WIN32
+    HANDLE proc        = nullptr;  /* child process handle (wait/terminate) */
+    HANDLE to_child    = nullptr;  /* GUI writes commands here (child stdin)  */
+    HANDLE from_child  = nullptr;  /* GUI reads status+log here (child stdout) */
+#else
+    pid_t pid          = -1;
+    int   to_child     = -1;   /* GUI writes commands here (child stdin)  */
+    int   from_child   = -1;   /* GUI reads status+log here (child stdout) */
+#endif
+    bool  alive        = false;
 };
 
 struct Shared
@@ -62,6 +92,16 @@ struct Shared
 /* Directory containing this executable - the engine ships next to the GUI. */
 static std::string self_dir()
 {
+#ifdef _WIN32
+    // GetModuleFileNameA has no procfs equivalent; backslashes are the
+    // native separator, so strip at the last '\' or '/' (MinGW may mix).
+    char p[MAX_PATH];
+    DWORD n = GetModuleFileNameA(nullptr, p, sizeof(p));
+    if (n == 0 || n >= sizeof(p)) return ".";
+    std::string s(p, n);
+    size_t sl = s.find_last_of("/\\");
+    return (sl == std::string::npos) ? "." : s.substr(0, sl);
+#else
     char p[4096];
     ssize_t n = readlink("/proc/self/exe", p, sizeof(p) - 1);
     if (n <= 0) return ".";
@@ -69,14 +109,78 @@ static std::string self_dir()
     std::string s(p);
     size_t sl = s.find_last_of('/');
     return (sl == std::string::npos) ? "." : s.substr(0, sl);
+#endif
 }
 
+#ifdef _WIN32
+static void close_handle(HANDLE &h)
+{
+    if (h && h != INVALID_HANDLE_VALUE) { CloseHandle(h); h = nullptr; }
+}
+#else
 static void close_fd(int &fd)
 {
     if (fd >= 0) { close(fd); fd = -1; }
 }
+#endif
 
 /* Spawn `path --ui`. Returns true if the fork/exec succeeded. */
+#ifdef _WIN32
+static bool spawn_engine(const std::string &path, EngineProc &e, Shared &sh)
+{
+    // CreateProcess needs inheritable pipe ends for the child and private
+    // ends for the GUI; bInheritHandle=false on ours keeps them local.
+    // stderr is merged into stdout so engine logs reach the log panel
+    // (the '#' prefix still separates machine lines from human logs).
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = nullptr;
+    sa.bInheritHandle = TRUE;
+    HANDLE to_read = nullptr, to_write = nullptr;
+    HANDLE from_read = nullptr, from_write = nullptr;
+    if (!CreatePipe(&to_read, &to_write, &sa, 0) ||
+        !CreatePipe(&from_read, &from_write, &sa, 0))
+    {
+        close_handle(to_read); close_handle(to_write);
+        close_handle(from_read); close_handle(from_write);
+        return false;
+    }
+    SetHandleInformation(to_write, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(from_read, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    memset(&si, 0, sizeof(si));
+    memset(&pi, 0, sizeof(pi));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = to_read;
+    si.hStdOutput = from_write;
+    si.hStdError = from_write;
+    std::string cmd = "\"" + path + "\" --ui";
+    // CreateProcess may write into the command buffer, so it must be mutable.
+    std::vector<char> cmdline(cmd.begin(), cmd.end());
+    cmdline.push_back('\0');
+    BOOL ok = CreateProcessA(nullptr, cmdline.data(), nullptr, nullptr,
+                             TRUE, CREATE_NO_WINDOW, nullptr, nullptr,
+                             &si, &pi);
+    CloseHandle(to_read);
+    CloseHandle(from_write);
+    if (!ok)
+    {
+        close_handle(to_write);
+        close_handle(from_read);
+        return false;
+    }
+    CloseHandle(pi.hThread);
+    e.proc = pi.hProcess;
+    e.to_child = to_write;
+    e.from_child = from_read;
+    e.alive = true;
+    sh.engine_eof = false;
+    return true;
+}
+#else
 static bool spawn_engine(const std::string &path, EngineProc &e, Shared &sh)
 {
     int to_in[2] = { -1, -1 }, from_out[2] = { -1, -1 };
@@ -108,8 +212,26 @@ static bool spawn_engine(const std::string &path, EngineProc &e, Shared &sh)
     sh.engine_eof = false;
     return true;
 }
+#endif
 
 /* Best-effort graceful stop: ask nicely, then escalate. */
+#ifdef _WIN32
+static void stop_engine(EngineProc &e)
+{
+    if (!e.proc) return;
+    // 'quit' was already sent by the caller where possible; the WASAPI
+    // engine exits its main loop on it, so wait ~2 s before terminating.
+    // TerminateProcess is the only escalation (no SIGTERM on Windows).
+    if (WaitForSingleObject(e.proc, 2000) != WAIT_OBJECT_0)
+        TerminateProcess(e.proc, 1);
+    WaitForSingleObject(e.proc, INFINITE);
+    CloseHandle(e.proc);
+    e.proc = nullptr;
+    close_handle(e.to_child);
+    close_handle(e.from_child);
+    e.alive = false;
+}
+#else
 static void stop_engine(EngineProc &e)
 {
     if (e.pid < 0) return;
@@ -133,7 +255,29 @@ static void stop_engine(EngineProc &e)
     close_fd(e.from_child);
     e.alive = false;
 }
+#endif
 
+#ifdef _WIN32
+static void send_cmd(EngineProc &e, const std::string &cmd)
+{
+    // WriteFile on an anonymous pipe blocks only when the buffer is full;
+    // one short line per UI click never fills it, so no overlapped I/O.
+    if (!e.to_child || e.to_child == INVALID_HANDLE_VALUE) return;
+    std::string line = cmd + "\n";
+    const char *p = line.c_str();
+    DWORD left = (DWORD)line.size();
+    while (left > 0)
+    {
+        DWORD done = 0;
+        if (!WriteFile(e.to_child, p, left, &done, nullptr) || done == 0)
+        {
+            e.alive = false;   // broken pipe: engine went away
+            break;
+        }
+        p += done; left -= done;
+    }
+}
+#else
 static void send_cmd(EngineProc &e, const std::string &cmd)
 {
     if (e.to_child < 0) return;
@@ -152,30 +296,49 @@ static void send_cmd(EngineProc &e, const std::string &cmd)
         p += (size_t)n; left -= (size_t)n;
     }
 }
+#endif
 
 /* Blocking pipe drain: runs on its own thread, pushes raw lines. */
+static void push_reader_chunk(Shared *sh, std::string &buf,
+                              const char *tmp, size_t n)
+{
+    buf.append(tmp, n);
+    size_t nl;
+    while ((nl = buf.find('\n')) != std::string::npos)
+    {
+        std::string line = buf.substr(0, nl);
+        buf.erase(0, nl + 1);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::lock_guard<std::mutex> lk(sh->lines_mtx);
+        sh->lines.push_back(line);
+        if (sh->lines.size() > 2000)
+            sh->lines.erase(sh->lines.begin(),
+                            sh->lines.begin() + (sh->lines.size() - 2000));
+    }
+}
+
 static void reader_main(EngineProc *e, Shared *sh)
 {
     std::string buf;
     char tmp[1024];
+#ifdef _WIN32
+    // ReadFile blocks until the engine writes or exits; a broken pipe
+    // (ERROR_BROKEN_PIPE) means clean EOF, anything else is engine gone.
+    for (;;)
+    {
+        DWORD n = 0;
+        if (!ReadFile(e->from_child, tmp, sizeof(tmp), &n, nullptr) || n == 0)
+            break;
+        push_reader_chunk(sh, buf, tmp, n);
+    }
+#else
     for (;;)
     {
         ssize_t n = read(e->from_child, tmp, sizeof(tmp));
         if (n <= 0) break;   /* EOF or error: engine gone */
-        buf.append(tmp, (size_t)n);
-        size_t nl;
-        while ((nl = buf.find('\n')) != std::string::npos)
-        {
-            std::string line = buf.substr(0, nl);
-            buf.erase(0, nl + 1);
-            if (!line.empty() && line.back() == '\r') line.pop_back();
-            std::lock_guard<std::mutex> lk(sh->lines_mtx);
-            sh->lines.push_back(line);
-            if (sh->lines.size() > 2000)
-                sh->lines.erase(sh->lines.begin(),
-                                sh->lines.begin() + (sh->lines.size() - 2000));
-        }
+        push_reader_chunk(sh, buf, tmp, (size_t)n);
     }
+#endif
     std::lock_guard<std::mutex> lk(sh->lines_mtx);
     sh->engine_eof = true;
 }
@@ -451,17 +614,37 @@ static void draw_log_panel(const GuiState &st)
 /* main: window, ImGui, frame loop                                  */
 /* ------------------------------------------------------------------ */
 
+#ifdef _WIN32
+// GUI subsystem entry: plain main() under /SUBSYSTEM:WINDOWS would need
+// WinMain, so keep the portable main() and set the subsystem via pragma.
+// The engine child still inherits working pipes; only OUR console goes
+// away (CREATE_NO_WINDOW already hides the child's).
+#pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+#endif
+
 int main(int argc, char **argv)
 {
+    // Same-folder default per OS: the Windows engine ships as
+    // pipewire_sync_win.exe next to sync_gui.exe (backslashes native).
+#ifdef _WIN32
+    std::string engine_path =
+        (argc > 1) ? argv[1] : self_dir() + "\\pipewire_sync_win.exe";
+#else
     std::string engine_path =
         (argc > 1) ? argv[1] : self_dir() + "/pipewire_sync";
+#endif
 
     EngineProc engine;
     Shared shared;
     if (!spawn_engine(engine_path, engine, shared))
     {
+#ifdef _WIN32
+        fprintf(stderr, "sync_gui: cannot spawn engine '%s': %lu\n",
+                engine_path.c_str(), (unsigned long)GetLastError());
+#else
         fprintf(stderr, "sync_gui: cannot spawn engine '%s': %s\n",
                 engine_path.c_str(), strerror(errno));
+#endif
         return 1;
     }
     std::thread reader(reader_main, &engine, &shared);

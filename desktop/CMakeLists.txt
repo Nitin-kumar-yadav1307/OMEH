@@ -30,7 +30,12 @@ endforeach()
 # dir is on the include path too - the protocol round-trip tests need it.
 add_executable(sync_selftest tools/sync_selftest.cpp)
 target_include_directories(sync_selftest PRIVATE ${PROTOCOL_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_options(sync_selftest PRIVATE -Wall -Wextra)
+# MSVC uses /W4, not -Wall (this CMakeLists also configures on Windows for sync_gui).
+if(MSVC)
+    target_compile_options(sync_selftest PRIVATE /W4)
+else()
+    target_compile_options(sync_selftest PRIVATE -Wall -Wextra)
+endif()
 add_test(NAME sync_selftest COMMAND sync_selftest)
 enable_testing()
 
@@ -71,38 +76,66 @@ else()
                    "(install libpipewire-0.3-dev to build them)")
 endif()
 
-# sample is a throwaway capture sanity check from early bring-up.
-add_executable(sample pipewire/sample.cpp)
+# sample is a throwaway capture sanity check from early Linux bring-up.
+# Kept for the POSIX builds that historically compiled it; Windows uses
+# run_win.bat / the WIN32 targets above instead.
+if(NOT WIN32)
+    add_executable(sample pipewire/sample.cpp)
+endif()
 
 # ---------------------------------------------------------------------------
-# sync_gui: standalone Dear ImGui monitor/control panel (Linux).
+# sync_gui: standalone Dear ImGui monitor/control panel (Linux + Windows).
 #
-# Owns pipewire_sync as a `--ui` child and talks to it over pipes
-# (desktop/ui_protocol.h). Guarded on SDL2 + GL so a minimal configure
-# still succeeds - without them only the engine/tools build.
+# Owns the engine as a `--ui` child and talks to it over pipes
+# (desktop/ui_protocol.h): pipewire_sync on Linux, pipewire_sync_win.exe
+# on Windows. Guarded on SDL2 + GL so a minimal configure still succeeds
+# - without them only the engine/tools build.
 # ---------------------------------------------------------------------------
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/imgui)
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
-    pkg_check_modules(GL QUIET IMPORTED_TARGET gl)
-endif()
-if(SDL2_FOUND AND GL_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
-    add_executable(sync_gui
-        gui/sync_gui.cpp
-        ${IMGUI_DIR}/imgui.cpp
-        ${IMGUI_DIR}/imgui_draw.cpp
-        ${IMGUI_DIR}/imgui_tables.cpp
-        ${IMGUI_DIR}/imgui_widgets.cpp
-        ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
-        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
-    # Each backend includes its own header as "backends/..." (see
-    # sync_gui.cpp), so the imgui root must be on the path; SDL2 comes
-    # from the imported target.
-    target_include_directories(sync_gui PRIVATE ${IMGUI_DIR})
-    target_link_libraries(sync_gui PRIVATE PkgConfig::SDL2 PkgConfig::GL)
-    target_compile_options(sync_gui PRIVATE -Wall -O2)
+set(SYNC_GUI_SRCS
+    gui/sync_gui.cpp
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+if(WIN32)
+    # MSVC has no pkg-config; SDL2 comes from vcpkg
+    # (vcpkg install sdl2 --triplet x64-windows) via the toolchain file,
+    # OpenGL ships with the Windows SDK. Same sources, same protocol.
+    find_package(SDL2 CONFIG QUIET)
+    find_package(OpenGL QUIET)
+    if(SDL2_FOUND AND OpenGL_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
+        add_executable(sync_gui ${SYNC_GUI_SRCS})
+        # Each backend includes its own header as "backends/..." (see
+        # sync_gui.cpp), so the imgui root must be on the path. SDL2 include
+        # dirs + defines come from its imported targets (vcpkg CONFIG package).
+        # No SDL2main: sync_gui.cpp defines SDL_MAIN_HANDLED and owns main()
+        # itself (SUBSYSTEM:WINDOWS via pragma); SDL2main would pull WinMain.
+        target_include_directories(sync_gui PRIVATE ${IMGUI_DIR})
+        target_link_libraries(sync_gui PRIVATE SDL2::SDL2 OpenGL::GL)
+        target_compile_options(sync_gui PRIVATE /W4 /utf-8)
+    else()
+        message(STATUS "SDL2/OpenGL/ImGui missing - skipping sync_gui "
+                       "(vcpkg install sdl2 --triplet x64-windows)")
+    endif()
 else()
-    message(STATUS "SDL2/GL/ImGui missing - skipping sync_gui "
-                   "(install libsdl2-dev + libgl-dev; ImGui is vendored)")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
+        pkg_check_modules(GL QUIET IMPORTED_TARGET gl)
+    endif()
+    if(SDL2_FOUND AND GL_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
+        add_executable(sync_gui ${SYNC_GUI_SRCS})
+        # Each backend includes its own header as "backends/..." (see
+        # sync_gui.cpp), so the imgui root must be on the path; SDL2 comes
+        # from the imported target.
+        target_include_directories(sync_gui PRIVATE ${IMGUI_DIR})
+        target_link_libraries(sync_gui PRIVATE PkgConfig::SDL2 PkgConfig::GL)
+        target_compile_options(sync_gui PRIVATE -Wall -O2)
+    else()
+        message(STATUS "SDL2/GL/ImGui missing - skipping sync_gui "
+                       "(install libsdl2-dev + libgl-dev; ImGui is vendored)")
+    endif()
 endif()
