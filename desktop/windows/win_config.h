@@ -89,3 +89,14 @@ static const PROPERTYKEY PK_DeviceInterface = {
 #define CLICK_LEN       (RATE / 50)
 #define CLICK_LEAD      (RATE / 10)
 #define OUR_APP_NAME    "pipewire_sync"
+
+/* MSVC does not provide lrint() (C99).  Round half away from zero,
+ * equivalent for the audio resampling use here.  Defined inline so every
+ * module sees it after win_config.h. */
+#if defined(_MSC_VER)
+static __forceinline long lrint_fallback(double x)
+{
+    return (long)(x >= 0.0 ? (x + 0.5) : (x - 0.5));
+}
+#define lrint(x) lrint_fallback(x)
+#endif
