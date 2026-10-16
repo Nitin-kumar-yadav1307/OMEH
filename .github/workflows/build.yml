@@ -39,11 +39,12 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build pipewire_sync_win.exe (MSVC)
-        run: cl /nologo /W4 /O2 /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:pipewire_sync_win.exe
+        run: cl /nologo /W4 /O2 /MT /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:pipewire_sync_win.exe
 
       # Same ImGui+SDL2 panel as Linux, driving pipewire_sync_win.exe over
-      # the --ui pipe. vcpkg provides SDL2 (manifest in desktop/, installed
-      # automatically by the toolchain at configure time); OpenGL ships
+      # the --ui pipe. vcpkg manifest mode (desktop/vcpkg.json) installs SDL2
+      # automatically through the toolchain; x64-windows-static links it IN
+      # so sync_gui.exe ships as one file with no SDL2.dll. OpenGL ships
       # with the Windows SDK.
       - name: Setup vcpkg
         run: |
@@ -52,18 +53,48 @@ jobs:
         env:
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
-      - name: Build sync_gui.exe (MSVC + vcpkg SDL2)
+      - name: Build sync_gui.exe (MSVC + static SDL2)
         run: |
-          cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static
           cmake --build desktop/build --config Release --target sync_gui
           if (!(Test-Path desktop/build/Release/sync_gui.exe)) { Write-Error "sync_gui missing"; exit 1 }
           copy desktop\build\Release\sync_gui.exe sync_gui.exe
-          # vcpkg links SDL2 dynamically: ship the DLL or the GUI exits with
-          # "SDL2.dll not found" on a clean machine.
-          $dll = Get-ChildItem -Recurse desktop/build/vcpkg_installed -Filter SDL2.dll | Select-Object -First 1
-          if (!$dll) { Write-Error "SDL2.dll not found under desktop/build/vcpkg_installed"; exit 1 }
-          copy $dll.FullName SDL2.dll
-          copy desktop\windows\START_HERE.bat START_HERE.bat
+
+      # Ship-blocking guard: a dynamic-linking regression here re-creates the
+      # #1 field bug ("SDL2.dll not found" / "VCRUNTIME140.dll missing" on a
+      # clean machine). Both exes must depend on OS DLLs only.
+      - name: Verify exes are self-contained (no DLL dependents)
+        run: |
+          $bad = 0
+          foreach ($exe in @("pipewire_sync_win.exe", "sync_gui.exe")) {
+            $deps = dumpbin /nologo /dependents $exe
+            $deps | ForEach-Object { Write-Host $_ }
+            if ($deps -match 'SDL2\.dll|VCRUNTIME140|MSVCP140') {
+              Write-Host "::error::$exe still depends on SDL2.dll/VC runtime - static build regressed"
+              $bad = 1
+            }
+          }
+          exit $bad
+
+      # One-click installer: per-user (no admin), Start Menu + Desktop
+      # shortcuts straight to the GUI, uninstaller. No console window
+      # anywhere in the user-facing path - START_HERE.bat is retired from
+      # distribution (it stays in the repo for source checkouts).
+      - name: Build SyncWifi-Setup-1.0.0.exe (Inno Setup)
+        run: |
+          choco install innosetup -y --no-progress
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { Write-Error "ISCC.exe not found after choco install"; exit 1 }
+          # Relative Source/OutputDir resolve against the script's own folder
+          # (SourceDir), so stage the exes next to installer.iss and compile
+          # with no command-line defines - nothing path-like to quote/parse.
+          copy sync_gui.exe, pipewire_sync_win.exe desktop\windows\
+          & $iscc desktop\windows\installer.iss
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path desktop\windows\SyncWifi-Setup-1.0.0.exe)) {
+            Write-Error "installer build failed"
+            exit 1
+          }
+          move desktop\windows\SyncWifi-Setup-1.0.0.exe .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -71,8 +102,7 @@ jobs:
           path: |
             pipewire_sync_win.exe
             sync_gui.exe
-            SDL2.dll
-            START_HERE.bat
+            SyncWifi-Setup-1.0.0.exe
           if-no-files-found: error
 
   android:
@@ -128,8 +158,7 @@ jobs:
             artifacts/linux-artifacts/desktop/build/pipewire_sync
             artifacts/windows-artifact/pipewire_sync_win.exe
             artifacts/windows-artifact/sync_gui.exe
-            artifacts/windows-artifact/SDL2.dll
-            artifacts/windows-artifact/START_HERE.bat
+            artifacts/windows-artifact/SyncWifi-Setup-1.0.0.exe
             artifacts/android-artifact/android/app/build/outputs/apk/debug/app-debug.apk
           draft: true
           prerelease: false

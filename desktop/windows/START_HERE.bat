@@ -5,9 +5,9 @@ cd /d "%~dp0"
 if not exist "pipewire_sync_win.exe" (
     echo.
     echo  pipewire_sync_win.exe not found in this folder.
-    echo  Did you unzip the whole folder? The .exe must sit next to this file.
-    echo  (sync_gui.exe + SDL2.dll ship in the same zip - unzip everything
-    echo  into one folder so the visual monitor can start)
+    echo  Did you unzip the whole folder? Every file must sit next to this file.
+    echo  (Easiest: run SyncWifi-Setup-1.0.0.exe from the Releases page - it
+    echo  installs everything and adds Start Menu / Desktop shortcuts.)
     echo.
     pause
     exit /b 1
@@ -20,7 +20,7 @@ if not exist "pipewire_sync_win.exe" (
 :: keyboard controls instead of buttons.
 if exist "sync_gui.exe" (
     echo  Starting the visual monitor (sync_gui.exe) ...
-    echo  (needs SDL2.dll in this folder - it ships in the same zip;
+    echo  (self-contained single exe, no DLLs needed;
     echo   to use the black console window instead, run run_win.bat --no-gui)
     echo.
     sync_gui.exe %*

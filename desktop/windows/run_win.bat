@@ -30,7 +30,7 @@ if not exist "pipewire_sync_win.exe" (
 )
 
 echo [run_win] building pipewire_sync_win.exe ...
-cl /nologo /W4 /O2 /std:c++17 /DNDEBUG ^
+cl /nologo /W4 /O2 /MT /std:c++17 /DNDEBUG ^
     pipewire_sync_win.cpp ^
     /link ole32.lib oleaut32.lib uuid.lib winmm.lib ^
     /Fe:pipewire_sync_win.exe
@@ -40,11 +40,13 @@ if errorlevel 1 (
 )
 
 :: Optional GUI (sync_gui.exe): same ImGui+SDL2 panel as Linux, driving the
-:: engine above over the --ui pipe. Needs SDL2 from vcpkg:
-::   vcpkg install sdl2 --triplet x64-windows
-:: then pass -DCMAKE_TOOLCHAIN_FILE=<vcpkg>\scripts\buildsystems\vcpkg.cmake
-:: below. Skipped silently when SDL2 is absent - the console engine above
-:: is the required piece; the GUI is a convenience monitor.
+:: engine above over the --ui pipe. Needs the vcpkg toolchain - SDL2 is
+:: installed automatically by the manifest (desktop/vcpkg.json) through
+::   -DCMAKE_TOOLCHAIN_FILE=<vcpkg>\scripts\buildsystems\vcpkg.cmake
+:: with the x64-windows-static triplet, so the result is one self-contained
+:: sync_gui.exe (no SDL2.dll beside it). Skipped silently when the toolchain
+:: is absent - the console engine above is the required piece; the GUI is a
+:: convenience monitor.
 :: Our own --no-gui flag may appear anywhere in %*; strip it into
 :: ENGINE_ARGS so the engine/GUI never sees it.
 set "WANT_GUI=1"
@@ -67,7 +69,7 @@ if defined WANT_GUI (
         )
         if exist "%TOOLCHAIN%" (
             echo [run_win] building sync_gui.exe (SDL2 GUI) ...
-            cmake -S "%~dp0\.." -B "%~dp0\..\build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="%TOOLCHAIN%" >nul
+            cmake -S "%~dp0\.." -B "%~dp0\..\build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="%TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows-static >nul
             cmake --build "%~dp0\..\build" --config Release --target sync_gui
             if errorlevel 1 (
                 echo [run_win] GUI build failed - engine still OK, continuing without GUI.
@@ -77,7 +79,7 @@ if defined WANT_GUI (
             )
         ) else (
             echo [run_win] vcpkg toolchain not found - skipping sync_gui.exe.
-            echo           (install vcpkg + "vcpkg install sdl2 --triplet x64-windows", then rerun)
+            echo           (install vcpkg, then rerun - SDL2 comes from desktop\vcpkg.json)
         )
     ) else (
         echo [run_win] cmake not on PATH - skipping sync_gui.exe (engine still built).

@@ -64,6 +64,20 @@
 #include <thread>
 #include <vector>   /* mutable CreateProcess command buffer (Windows) */
 
+/* Fatal startup error, shown where the user can actually see it.
+ * sync_gui.exe is a WINDOWS-subsystem process: when double-clicked there is
+ * no console, so the old fprintf-only paths fired into nothing - a missing
+ * engine exe or an SDL failure looked exactly like "the GUI never opens".
+ * MessageBoxA makes every fatal path visible; stderr stays for terminals
+ * and CI logs. */
+static void fatal_box(const std::string &msg)
+{
+    fprintf(stderr, "sync_gui: %s\n", msg.c_str());
+#ifdef _WIN32
+    MessageBoxA(nullptr, msg.c_str(), "SyncWifi", MB_OK | MB_ICONERROR);
+#endif
+}
+
 /* ------------------------------------------------------------------ */
 /* Engine child process                                              */
 /* ------------------------------------------------------------------ */
@@ -638,13 +652,22 @@ int main(int argc, char **argv)
     Shared shared;
     if (!spawn_engine(engine_path, engine, shared))
     {
+        char msg[512];
 #ifdef _WIN32
-        fprintf(stderr, "sync_gui: cannot spawn engine '%s': %lu\n",
-                engine_path.c_str(), (unsigned long)GetLastError());
+        /* ERROR_FILE_NOT_FOUND (2) is the common case: sync_gui.exe was
+           copied somewhere alone. Say so in words a user can act on. */
+        snprintf(msg, sizeof(msg),
+                 "Cannot start the audio engine:\n"
+                 "  %s\n(error %lu)\n\n"
+                 "Keep pipewire_sync_win.exe in the same folder as this "
+                 "program - or install the SyncWifi-Setup installer from "
+                 "the Releases page.",
+                 engine_path.c_str(), (unsigned long)GetLastError());
 #else
-        fprintf(stderr, "sync_gui: cannot spawn engine '%s': %s\n",
-                engine_path.c_str(), strerror(errno));
+        snprintf(msg, sizeof(msg), "cannot spawn engine '%s': %s",
+                 engine_path.c_str(), strerror(errno));
 #endif
+        fatal_box(msg);
         return 1;
     }
     std::thread reader(reader_main, &engine, &shared);
@@ -652,7 +675,7 @@ int main(int argc, char **argv)
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
     {
-        fprintf(stderr, "sync_gui: SDL_Init: %s\n", SDL_GetError());
+        fatal_box(std::string("SDL_Init failed: ") + SDL_GetError());
         stop_engine(engine);
         return 1;
     }
@@ -670,7 +693,7 @@ int main(int argc, char **argv)
         1100, 700, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window)
     {
-        fprintf(stderr, "sync_gui: SDL_CreateWindow: %s\n", SDL_GetError());
+        fatal_box(std::string("SDL_CreateWindow failed: ") + SDL_GetError());
         SDL_Quit();
         stop_engine(engine);
         return 1;
@@ -678,7 +701,8 @@ int main(int argc, char **argv)
     SDL_GLContext gl = SDL_GL_CreateContext(window);
     if (!gl)
     {
-        fprintf(stderr, "sync_gui: SDL_GL_CreateContext: %s\n", SDL_GetError());
+        fatal_box(std::string("SDL_GL_CreateContext failed: ") +
+                  SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
         stop_engine(engine);

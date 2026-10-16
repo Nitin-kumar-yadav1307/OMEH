@@ -53,6 +53,16 @@ if(WIN32)
     # find which key identifies Bluetooth devices.
     add_executable(diag_props_win windows/diag_props.cpp)
     target_link_libraries(diag_props_win PRIVATE ole32)
+    if(MSVC)
+        # Static CRT for every Windows exe here: run_win.bat and CI compile
+        # the engine with cl /MT, so keep the CMake twins identical - a /MD
+        # build would drag VCRUNTIME140.dll into whatever folder it lands in,
+        # which is exactly what the installer is designed to avoid.
+        foreach(t pipewire_sync_win diag_props_win)
+            set_property(TARGET ${t} PROPERTY MSVC_RUNTIME_LIBRARY
+                         "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        endforeach()
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------
@@ -101,9 +111,10 @@ set(SYNC_GUI_SRCS
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
 if(WIN32)
-    # MSVC has no pkg-config; SDL2 comes from vcpkg
-    # (vcpkg install sdl2 --triplet x64-windows) via the toolchain file,
-    # OpenGL ships with the Windows SDK. Same sources, same protocol.
+    # MSVC has no pkg-config; SDL2 comes from vcpkg via the toolchain file.
+    # CI and the shipped build pass -DVCPKG_TARGET_TRIPLET=x64-windows-static
+    # so SDL2 links IN statically; OpenGL ships with the Windows SDK.
+    # Same sources, same protocol.
     find_package(SDL2 CONFIG QUIET)
     find_package(OpenGL QUIET)
     if(SDL2_FOUND AND OpenGL_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
@@ -114,11 +125,30 @@ if(WIN32)
         # No SDL2main: sync_gui.cpp defines SDL_MAIN_HANDLED and owns main()
         # itself (SUBSYSTEM:WINDOWS via pragma); SDL2main would pull WinMain.
         target_include_directories(sync_gui PRIVATE ${IMGUI_DIR})
-        target_link_libraries(sync_gui PRIVATE SDL2::SDL2 OpenGL::GL)
+        # Prefer the static SDL2 target (x64-windows-static): one exe, no
+        # SDL2.dll beside it - that missing DLL was the #1 field bug.
+        # Dynamic triplets simply fall back to SDL2::SDL2 (the DLL import).
+        if(TARGET SDL2::SDL2-static)
+            set(SYNC_GUI_SDL SDL2::SDL2-static)
+        else()
+            set(SYNC_GUI_SDL SDL2::SDL2)
+        endif()
+        target_link_libraries(sync_gui PRIVATE ${SYNC_GUI_SDL} OpenGL::GL)
         target_compile_options(sync_gui PRIVATE /W4 /utf-8)
+        # Static CRT, but only for static triplets (x64-windows-static ends
+        # in "static"; x64-windows-static-md is still /MD and must not flip).
+        # vcpkg builds *-static with /MT - any mismatch here is LNK2038.
+        # This is what removes the VCRUNTIME140/MSVCP140 dependency, so the
+        # installer ships two files and nothing else.
+        if(VCPKG_TARGET_TRIPLET MATCHES "static$")
+            set_property(TARGET sync_gui PROPERTY MSVC_RUNTIME_LIBRARY
+                         "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        endif()
     else()
         message(STATUS "SDL2/OpenGL/ImGui missing - skipping sync_gui "
-                       "(vcpkg install sdl2 --triplet x64-windows)")
+                       "(vcpkg manifest desktop/vcpkg.json; pass "
+                       "-DVCPKG_TARGET_TRIPLET=x64-windows-static for a "
+                       "self-contained exe)")
     endif()
 else()
     find_package(PkgConfig QUIET)

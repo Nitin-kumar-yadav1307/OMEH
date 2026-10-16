@@ -54,12 +54,15 @@ cmake --build desktop/build -j
 ./desktop/build/sync_client   # in another
 ```
 
-**Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md). Build once
-with `desktop/windows/run_win.bat` (MSVC), then double-click `START_HERE.bat`
-(it opens `sync_gui.exe` when built, else the console engine);
-or download prebuilt `pipewire_sync_win.exe` + `sync_gui.exe` from a GitHub
-Release. `run_win.bat` builds the GUI too when SDL2 is available via vcpkg
-(`vcpkg install sdl2 --triplet x64-windows` + `VCPKG_ROOT` set).
+**Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md).
+Download **`SyncWifi-Setup-1.0.0.exe`** from a GitHub Release, run it
+(per-user install, no admin), and launch **SyncWifi** from the Start Menu or
+Desktop shortcut. One self-contained `sync_gui.exe` — static SDL2 + static
+CRT, no DLLs, no console window anywhere. The build is unsigned: SmartScreen
+shows "Windows protected your PC" → click **More info → Run anyway**.
+Developers build from source with `desktop/windows/run_win.bat` (MSVC +
+vcpkg manifest; the GUI links `x64-windows-static` so it matches the shipped
+binary exactly).
 
 ## Design notes
 
@@ -88,7 +91,7 @@ Release. `run_win.bat` builds the GUI too when SDL2 is available via vcpkg
 |---------|-------|
 | Android | API 29+ (Android 10) — `AudioPlaybackCapture` |
 | Linux   | `libpipewire-0.3-dev`, `libspa-0.2-dev`, CMake ≥ 3.16, C++17 |
-| Windows | Visual Studio 2022 "Build Tools" / "Desktop development with C++" (MSVC). One-click build: `desktop/windows/run_win.bat` |
+| Windows | **End users:** Windows 10/11 64-bit — just run `SyncWifi-Setup-1.0.0.exe` from a Release. **Building:** Visual Studio 2022 "Build Tools" / "Desktop development with C++" (MSVC). One-click build: `desktop/windows/run_win.bat` |
 
 ## One-shot CI build (all three targets)
 
@@ -101,7 +104,9 @@ The single workflow file is:
 - **Linux** (`ubuntu-latest`): `cmake` → `sync_gui`, `sync_master`, `sync_client`,
   `sync_selftest` (self-test always runs), `pipewire_sync`.
 - **Windows** (`windows-latest`): MSVC (`cl.exe`) → `pipewire_sync_win.exe` +
-  `sync_gui.exe` (ImGui+SDL2 panel via vcpkg, drives the engine over `--ui`).
+  `sync_gui.exe` (ImGui+SDL2 panel via vcpkg, drives the engine over `--ui`;
+  **static** SDL2 + `/MT`, verified by a `dumpbin /dependents` guard) and the
+  Inno Setup installer **`SyncWifi-Setup-1.0.0.exe`**.
 - **Android** (`ubuntu-latest`): Gradle → `app-debug.apk`.
 
 ```bash
@@ -126,13 +131,17 @@ When a version tag like `v1.2.3` is pushed, GitHub Actions turns that tag into a
 
 | Asset | Built by |
 |-------|----------|
-| `pipewire_sync_win.exe` + `sync_gui.exe` (Windows) | CI `windows` job |
+| `SyncWifi-Setup-1.0.0.exe` (Windows installer, **start here**) | CI `windows` job (Inno Setup) |
+| `pipewire_sync_win.exe` + `sync_gui.exe` (Windows portable — self-contained, no DLLs) | CI `windows` job |
 | `sync_gui`, `sync_master`, `sync_client`, `sync_selftest`, `pipewire_sync` (Linux) | CI `linux` job |
 | `app-debug.apk` (Android) | CI `android` job |
 
 Put the prebuilt binaries in front of the people who need them:
-- **Windows**: download `pipewire_sync_win.exe` + `sync_gui.exe`, double-click `START_HERE.bat`
-  (opens the GUI when `sync_gui.exe` is present, else the console engine).
+- **Windows**: download `SyncWifi-Setup-1.0.0.exe` and run it — it installs
+  `sync_gui.exe` + `pipewire_sync_win.exe` per-user and adds Start Menu /
+  Desktop shortcuts; no console window ever appears. Unsigned build: on the
+  SmartScreen screen click **More info → Run anyway**. Prefer no install?
+  Drop the two `.exe`s into any folder and run `sync_gui.exe` directly.
 - **Linux**: run the binaries from the Release page (or your distro packages `pipewire_sync`/`sync_gui`).
 - **Android**: install `app-debug.apk` on both phones.
 
