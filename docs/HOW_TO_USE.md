@@ -56,6 +56,8 @@ usually plays noticeably later than the other.
 
 - The laptop speakers are **muted** while it runs (that is normal — the sound
   comes from the earbuds instead). Stop the program and the speakers come back.
+  If the engine log instead says `staying audible`, this machine's driver
+  cannot mute without killing the capture — see *If something goes wrong*.
 - The build is **unsigned**: SmartScreen may show a blue "Windows protected
   your PC" screen for the installer or the app. Click **More info**, then
   **Run anyway**.
@@ -152,6 +154,16 @@ audio-endpoint property Windows exposes. Build it the same way to produce
   `vol0 ...` with a healthy level); if that works the source sits at volume
   0 while streaming and the room stays quiet. If both fail it stays audible
   on purpose — silencing would also silence the buds. The sync still works.
+  The self-test prints all three probe levels on every start (e.g.
+  `0.0899 unmuted / 0.0035 muted / 0.0014 vol0`); a quiet mode is only
+  chosen when its level stays above 25 % of the unmuted one — above 0.0225
+  in that example, while both probes here came in far below it. Before
+  accepting it, try turning off the speakers'
+  enhancement DSP: *Sound control panel → Speaker Properties → Enhancements →
+  Disable all enhancements* (Windows 11: *Advanced → Audio enhancements →
+  Off*), then restart SyncWifi — the test re-runs at every start, and a line
+  reading `mute does not affect the loopback tap` means the room now stays
+  quiet.
 
 - **One earbud still lags the others**
   Stop the program (`q`), then start it again with a small fix. For example,
