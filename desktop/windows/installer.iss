@@ -16,10 +16,10 @@
 ;     desktop/CMakeLists.txt), so these two files are the entire install -
 ;     no DLLs, no VC++ Redistributable, no post-install steps.
 
-#define MyAppName "SyncWifi"
+#define MyAppName "OMEH"
 ; Keep in sync with desktop/vcpkg.json version-string.
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "SyncWifi contributors"
+#define MyAppPublisher "OMEH contributors"
 #define MyAppURL "https://github.com/Nitin-kumar-yadav1307/OMEH"
 #define MyAppExeName "sync_gui.exe"
 #ifndef StageDir

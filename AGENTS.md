@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-`SyncWifi` — low-latency audio sync. The Android app (`android/`) streams a
+`OMEH` — Open Multi Earbuds Hub: low-latency audio sync. The Android app (`android/`) streams a
 phone's internal audio to a second phone over Wi-Fi Direct. The `desktop/`
 folder holds the earlier Bluetooth-earbud prototypes and a protocol test pair.
 

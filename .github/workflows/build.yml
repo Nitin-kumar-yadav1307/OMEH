@@ -80,7 +80,7 @@ jobs:
       # shortcuts straight to the GUI, uninstaller. No console window
       # anywhere in the user-facing path - START_HERE.bat is retired from
       # distribution (it stays in the repo for source checkouts).
-      - name: Build SyncWifi-Setup-1.0.0.exe (Inno Setup)
+      - name: Build OMEH-Setup-1.0.0.exe (Inno Setup)
         run: |
           choco install innosetup -y --no-progress
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -90,11 +90,11 @@ jobs:
           # with no command-line defines - nothing path-like to quote/parse.
           copy sync_gui.exe, pipewire_sync_win.exe desktop\windows\
           & $iscc desktop\windows\installer.iss
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path desktop\windows\SyncWifi-Setup-1.0.0.exe)) {
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path desktop\windows\OMEH-Setup-1.0.0.exe)) {
             Write-Error "installer build failed"
             exit 1
           }
-          move desktop\windows\SyncWifi-Setup-1.0.0.exe .
+          move desktop\windows\OMEH-Setup-1.0.0.exe .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -102,7 +102,7 @@ jobs:
           path: |
             pipewire_sync_win.exe
             sync_gui.exe
-            SyncWifi-Setup-1.0.0.exe
+            OMEH-Setup-1.0.0.exe
           if-no-files-found: error
 
   android:
@@ -158,9 +158,10 @@ jobs:
             artifacts/linux-artifacts/desktop/build/pipewire_sync
             artifacts/windows-artifact/pipewire_sync_win.exe
             artifacts/windows-artifact/sync_gui.exe
-            artifacts/windows-artifact/SyncWifi-Setup-1.0.0.exe
+            artifacts/windows-artifact/OMEH-Setup-1.0.0.exe
             artifacts/android-artifact/android/app/build/outputs/apk/debug/app-debug.apk
           draft: true
           prerelease: false
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
+

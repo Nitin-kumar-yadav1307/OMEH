@@ -12,7 +12,7 @@ usually plays noticeably later than the other.
 
 - Windows 10 or 11 (64-bit)
 - A pair of Bluetooth earbuds, connected to the laptop
-- **`SyncWifi-Setup-1.0.0.exe`** from the GitHub Releases page — installs
+- **`OMEH-Setup-1.0.0.exe`** from the GitHub Releases page — installs
   everything and adds shortcuts (no admin needed). Portable alternative:
   the two raw files, `sync_gui.exe` (GUI) + `pipewire_sync_win.exe`
   (engine). Both are self-contained (no DLLs), but you must keep them in the
@@ -25,9 +25,9 @@ usually plays noticeably later than the other.
 2. Connect them to the laptop: **Settings → Bluetooth & devices**.
    Both earbuds must say "Connected".
 
-3. Start SyncWifi **before** starting the music:
-   - **Installed** (recommended): double-click the **SyncWifi** shortcut on
-     your Desktop / in the Start Menu (created by `SyncWifi-Setup-1.0.0.exe`).
+3. Start OMEH **before** starting the music:
+   - **Installed** (recommended): double-click the **OMEH** shortcut on
+     your Desktop / in the Start Menu (created by `OMEH-Setup-1.0.0.exe`).
    - **Portable**: double-click `sync_gui.exe` in the folder holding both
      `.exe` files. (`START_HERE.bat` from a source checkout does the same,
      with a pause at the end so error messages stay readable.)
@@ -133,7 +133,7 @@ the GUI attempt outright). `sync_gui.exe` owns
 `pipewire_sync_win.exe --ui` as a child and shows the per-device table
 + engine log; Q quits and restores the speakers. CI does the same
 (`x64-windows-static`, so both exes are self-contained) and attaches the two
-exes plus **`SyncWifi-Setup-1.0.0.exe`** to draft releases. The installer is
+exes plus **`OMEH-Setup-1.0.0.exe`** to draft releases. The installer is
 compiled from `desktop/windows/installer.iss` (Inno Setup): stage both exes
 next to it and run `ISCC.exe desktop\windows\installer.iss` from the repo root.
 
@@ -145,7 +145,7 @@ audio-endpoint property Windows exposes. Build it the same way to produce
 
 - **"No Bluetooth sinks found" / it exits immediately**
   The earbuds were not connected. Connect both in *Settings → Bluetooth &
-  devices*, then start SyncWifi again (the shortcut, `sync_gui.exe`, or
+  devices*, then start OMEH again (the shortcut, `sync_gui.exe`, or
   `START_HERE.bat` in a source checkout).
 
 - **You hear the sound on the laptop speakers AND earbuds**
@@ -170,7 +170,7 @@ audio-endpoint property Windows exposes. Build it the same way to produce
   accepting it, try turning off the speakers'
   enhancement DSP: *Sound control panel → Speaker Properties → Enhancements →
   Disable all enhancements* (Windows 11: *Advanced → Audio enhancements →
-  Off*), then restart SyncWifi — the test re-runs at every start, and a line
+  Off*), then restart OMEH — the test re-runs at every start, and a line
   reading `mute does not affect the loopback tap` (or `switching capture to
   it`) means the room now stays quiet.
 
@@ -190,3 +190,4 @@ audio-endpoint property Windows exposes. Build it the same way to produce
   of chasing an exit. In console mode, use `START_HERE.bat` instead of
   double-clicking the `.exe` — it waits for a keypress so you can read the
   message.
+

@@ -33,7 +33,7 @@
 
     <application
         android:name=".SyncWifiApp"
-        android:label="SyncWifi"
+        android:label="OMEH"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
             android:name=".ui.MainActivity"

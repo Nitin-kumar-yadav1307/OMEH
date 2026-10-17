@@ -1,4 +1,4 @@
-# SyncWifi
+# OMEH — Open Multi Earbuds Hub
 
 Low-latency, peer-to-peer audio sync between Android phones over **Wi-Fi Direct**.
 
@@ -21,7 +21,7 @@ protocol/     Wire format + sync math, shared verbatim by every target.
 
 android/      The Android product. Standalone Gradle project (open the
               android/ folder in Android Studio or build with ./gradlew).
-              Kotlin lives in com.syncwifi.{ui,p2p,stream,util}.
+              Kotlin lives in com.OMEH.{ui,p2p,stream,util}.
 
 desktop/      Reference implementations and tools:
   pipewire/   Linux PipeWire earbud-sync (pipewire_sync).
@@ -55,8 +55,8 @@ cmake --build desktop/build -j
 ```
 
 **Desktop (Windows)** — see [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md).
-Download **`SyncWifi-Setup-1.0.0.exe`** from a GitHub Release, run it
-(per-user install, no admin), and launch **SyncWifi** from the Start Menu or
+Download **`OMEH-Setup-1.0.0.exe`** from a GitHub Release, run it
+(per-user install, no admin), and launch **OMEH** from the Start Menu or
 Desktop shortcut. One self-contained `sync_gui.exe` — static SDL2 + static
 CRT, no DLLs, no console window anywhere. The build is unsigned: SmartScreen
 shows "Windows protected your PC" → click **More info → Run anyway**.
@@ -91,7 +91,7 @@ binary exactly).
 |---------|-------|
 | Android | API 29+ (Android 10) — `AudioPlaybackCapture` |
 | Linux   | `libpipewire-0.3-dev`, `libspa-0.2-dev`, CMake ≥ 3.16, C++17 |
-| Windows | **End users:** Windows 10/11 64-bit — just run `SyncWifi-Setup-1.0.0.exe` from a Release. **Building:** Visual Studio 2022 "Build Tools" / "Desktop development with C++" (MSVC). One-click build: `desktop/windows/run_win.bat` |
+| Windows | **End users:** Windows 10/11 64-bit — just run `OMEH-Setup-1.0.0.exe` from a Release. **Building:** Visual Studio 2022 "Build Tools" / "Desktop development with C++" (MSVC). One-click build: `desktop/windows/run_win.bat` |
 
 ## One-shot CI build (all three targets)
 
@@ -106,7 +106,7 @@ The single workflow file is:
 - **Windows** (`windows-latest`): MSVC (`cl.exe`) → `pipewire_sync_win.exe` +
   `sync_gui.exe` (ImGui+SDL2 panel via vcpkg, drives the engine over `--ui`;
   **static** SDL2 + `/MT`, verified by a `dumpbin /dependents` guard) and the
-  Inno Setup installer **`SyncWifi-Setup-1.0.0.exe`**.
+  Inno Setup installer **`OMEH-Setup-1.0.0.exe`**.
 - **Android** (`ubuntu-latest`): Gradle → `app-debug.apk`.
 
 ```bash
@@ -131,13 +131,13 @@ When a version tag like `v1.2.3` is pushed, GitHub Actions turns that tag into a
 
 | Asset | Built by |
 |-------|----------|
-| `SyncWifi-Setup-1.0.0.exe` (Windows installer, **start here**) | CI `windows` job (Inno Setup) |
+| `OMEH-Setup-1.0.0.exe` (Windows installer, **start here**) | CI `windows` job (Inno Setup) |
 | `pipewire_sync_win.exe` + `sync_gui.exe` (Windows portable — self-contained, no DLLs) | CI `windows` job |
 | `sync_gui`, `sync_master`, `sync_client`, `sync_selftest`, `pipewire_sync` (Linux) | CI `linux` job |
 | `app-debug.apk` (Android) | CI `android` job |
 
 Put the prebuilt binaries in front of the people who need them:
-- **Windows**: download `SyncWifi-Setup-1.0.0.exe` and run it — it installs
+- **Windows**: download `OMEH-Setup-1.0.0.exe` and run it — it installs
   `sync_gui.exe` + `pipewire_sync_win.exe` per-user and adds Start Menu /
   Desktop shortcuts; no console window ever appears. Unsigned build: on the
   SmartScreen screen click **More info → Run anyway**. Prefer no install?
@@ -152,3 +152,4 @@ before anyone downloads them.
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
+

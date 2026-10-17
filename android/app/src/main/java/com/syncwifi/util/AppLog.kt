@@ -15,11 +15,11 @@ import java.util.concurrent.ConcurrentLinkedDeque
  * - Rate-limited dedup: an identical message within [DEDUP_MS] of the last
  *   one only bumps a repeat counter (UDP send failures fire at ~100 Hz and
  *   must not drown the log or the UI).
- * - Every entry is also mirrored to logcat under the "SyncWifi" tag.
+ * - Every entry is also mirrored to logcat under the "OMEH" tag.
  */
 object AppLog {
 
-    private const val TAG = "SyncWifi"
+    private const val TAG = "OMEH"
     private const val MAX = 250
     private const val DEDUP_MS = 2000L
 

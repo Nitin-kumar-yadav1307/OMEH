@@ -94,4 +94,4 @@ own `:crash` process so it survives the crash it is displaying. Tap
 **LAST CRASH** in the app, then **COPY ERROR**.
 
 The on-screen log panel (`AppLog`) is a ring buffer mirrored to logcat under
-the tag `SyncWifi`, so it is readable on the device without `adb`.
+the tag `OMEH`, so it is readable on the device without `adb`.

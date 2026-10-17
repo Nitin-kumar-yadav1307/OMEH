@@ -67,9 +67,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 5. Run
 
 1. Install the **same APK on both phones**.
-2. **Master**: open SyncWifi → *START AS MASTER* → accept the screen-capture
+2. **Master**: open OMEH → *START AS MASTER* → accept the screen-capture
    consent → a QR code appears.
-3. **Client**: open SyncWifi → *SCAN TO JOIN* → scan the master's QR → accept
+3. **Client**: open OMEH → *SCAN TO JOIN* → scan the master's QR → accept
    the Wi-Fi Direct invitation.
 4. On the master, start playback (YouTube, Chrome, music app — **not Netflix**,
    which is DRM-protected and captures as silence).
@@ -104,3 +104,4 @@ android/app/src/main/
   7×) → USB debugging ON → replug → accept the prompt.
 - Client never finds the master → see
   [TROUBLESHOOTING.md](TROUBLESHOOTING.md#p2p-pairing-fails).
+
