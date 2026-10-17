@@ -93,8 +93,8 @@
             android:visibility="gone"
             android:contentDescription="Join QR" />
 
-        <!-- Buttons -->
-        <com.google.android.material.button.MaterialButton
+        <!-- Buttons (AppCompat: no MaterialComponents theme dependency) -->
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/masterBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -102,11 +102,10 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:backgroundTint="@color/purple_primary"
+            android:background="@drawable/bg_btn_primary"
             android:textColor="@color/purple_white" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/clientBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -114,11 +113,10 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:backgroundTint="@color/purple_dim"
+            android:background="@drawable/bg_btn_secondary"
             android:textColor="@color/purple_white" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/scanBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -126,11 +124,10 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:backgroundTint="@color/purple_dim"
+            android:background="@drawable/bg_btn_secondary"
             android:textColor="@color/purple_white" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/stopBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -138,11 +135,10 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:backgroundTint="@color/purple_dim"
+            android:background="@drawable/bg_btn_secondary"
             android:textColor="@color/purple_white" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/crashBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -150,8 +146,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginBottom="20dp"
-            app:cornerRadius="8dp"
-            app:backgroundTint="@color/purple_dim"
+            android:background="@drawable/bg_btn_secondary"
             android:textColor="@color/purple_white" />
 
         <!-- Status card header -->

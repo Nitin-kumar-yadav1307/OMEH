@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.OMEH" parent="Theme.AppCompat.NoActionBar">
+    <style name="Theme.OMEH" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/purple_primary</item>
         <item name="colorPrimaryDark">@color/purple_deep</item>
         <item name="android:windowBackground">@color/purple_deep</item>
