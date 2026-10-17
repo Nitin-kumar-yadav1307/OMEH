@@ -1,5 +1,5 @@
 /*
- * sync_gui.cpp - standalone Dear ImGui monitor/control panel for pipewire_sync.
+ * sync_gui.cpp - OMEH Monitor control panel (Dear ImGui) for pipewire_sync.
  *
  * Owns the ENGINE as a child process (spawned with --ui) and talks to it over
  * two pipes using desktop/ui_protocol.h: machine lines ('#S'/'#D'/'#A') come
@@ -689,7 +689,7 @@ int main(int argc, char **argv)
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     SDL_Window *window = SDL_CreateWindow(
-        "SyncWifi monitor", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        "OMEH", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         1100, 700, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window)
     {
@@ -714,6 +714,9 @@ int main(int argc, char **argv)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
+    /* Portable monospace: Consolas (Windows) -> Menlo (macOS) -> DejaVu
+       (Linux). First existing file wins; otherwise ImGui's default. The
+       engine log + device metrics use this for the terminal look. */
     io.FontGlobalScale = 1.25f;   /* readable on HiDPI without hunting menus */
     ImGui::StyleColorsDark();
     /* Roomier default style: the previous tight padding made the cramped
@@ -721,68 +724,80 @@ int main(int argc, char **argv)
     ImGuiStyle &style = ImGui::GetStyle();
     style.WindowRounding    = 8.0f;
     style.FramePadding      = ImVec2(6.0f, 3.0f);
-    /* Logo palette (purple headphones): primary #A855F7, deep #190A37,
-       near-white #F0F0FA, lavender #B4AAC8. Override StyleColorsDark so
-       every surface, text, widget and frame matches the brand. */
-    const ImVec4 PURPLE_PRIMARY = ImVec4(0.66f, 0.33f, 0.97f, 1.0f);   /* #A855F7 */
-    const ImVec4 PURPLE_DEEP    = ImVec4(0.10f, 0.04f, 0.22f, 1.0f);   /* #190A37 */
-    const ImVec4 PURPLE_LAV     = ImVec4(0.71f, 0.67f, 0.78f, 1.0f);   /* #B4AAC8 */
-    const ImVec4 PURPLE_WHITE   = ImVec4(0.94f, 0.94f, 0.98f, 1.0f);   /* #F0F0FA */
-    const ImVec4 PURPLE_DIM     = ImVec4(0.20f, 0.10f, 0.40f, 1.0f);   /* dimmed bg */
+    /* OMEH theme: centralized palette (task spec). Near-black main bg
+       #0B0618, secondary bg #130A27, panel bg #180D30, section headers
+       #35146B, primary purple #7C3AED, bright accent #A855F7, hover #9333EA,
+       text #F5F0FF / secondary #C4B5FD / muted #8B83A6, live #4ADE80,
+       warning #FBBF24, error #FB7185, borders #4C1D95. Flat fills +
+       subtle borders, no gradients or glow. */
+    const ImVec4 BG_MAIN      = ImVec4(0.0431f, 0.0235f, 0.0941f, 1.0f);   /* #0B0618 */
+    const ImVec4 BG_SEC       = ImVec4(0.075f, 0.039f, 0.153f, 1.0f);   /* #130A27 */
+    const ImVec4 BG_PANEL     = ImVec4(0.094f, 0.051f, 0.188f, 1.0f);   /* #180D30 */
+    const ImVec4 SEC_HEADER   = ImVec4(0.208f, 0.078f, 0.420f, 1.0f);   /* #35146B */
+    const ImVec4 PURPLE       = ImVec4(0.486f, 0.227f, 0.929f, 1.0f);   /* #7C3AED */
+    const ImVec4 PURPLE_ACC   = ImVec4(0.659f, 0.333f, 0.969f, 1.0f);   /* #A855F7 */
+    const ImVec4 TXT_MAIN     = ImVec4(0.961f, 0.941f, 1.000f, 1.0f);   /* #F5F0FF */
+    const ImVec4 TXT_SEC      = ImVec4(0.769f, 0.710f, 0.992f, 1.0f);   /* #C4B5FD */
+    const ImVec4 TXT_MUTED    = ImVec4(0.545f, 0.514f, 0.651f, 1.0f);   /* #8B83A6 */
+    const ImVec4 COL_BORDER   = ImVec4(0.298f, 0.114f, 0.584f, 1.0f);   /* #4C1D95 */
+    const ImVec4 HOVER_ACC    = ImVec4(0.576f, 0.200f, 0.918f, 1.0f);   /* #9333EA */
+    const ImVec4 COL_LIVE     = ImVec4(0.290f, 0.871f, 0.502f, 1.0f);   /* #4ADE80 */
+    const ImVec4 COL_WARN     = ImVec4(0.984f, 0.749f, 0.141f, 1.0f);   /* #FBBF24 */
+    const ImVec4 COL_ERR      = ImVec4(0.984f, 0.443f, 0.522f, 1.0f);   /* #FB7185 */
 
-    style.Colors[ImGuiCol_Text]             = PURPLE_WHITE;
-    style.Colors[ImGuiCol_TextDisabled]     = PURPLE_LAV;
-    style.Colors[ImGuiCol_WindowBg]         = PURPLE_DEEP;
-    style.Colors[ImGuiCol_ChildBg]          = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
-    style.Colors[ImGuiCol_PopupBg]          = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
-    style.Colors[ImGuiCol_Border]           = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
-    style.Colors[ImGuiCol_FrameBg]          = PURPLE_DIM;
-    style.Colors[ImGuiCol_FrameBgHovered]   = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_FrameBgActive]    = ImVec4(0.55f, 0.30f, 0.75f, 1.0f);
-    style.Colors[ImGuiCol_TitleBg]          = PURPLE_DEEP;
-    style.Colors[ImGuiCol_TitleBgActive]    = PURPLE_DIM;
-    style.Colors[ImGuiCol_MenuBarBg]        = PURPLE_DEEP;
-    style.Colors[ImGuiCol_ScrollbarBg]      = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
-    style.Colors[ImGuiCol_ScrollbarGrab]    = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
-    style.Colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.85f, 0.60f, 1.00f, 1.0f);
-    style.Colors[ImGuiCol_CheckMark]        = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_SliderGrab]       = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
-    style.Colors[ImGuiCol_Button]           = PURPLE_DIM;
-    style.Colors[ImGuiCol_ButtonHovered]    = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_ButtonActive]     = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_Header]           = PURPLE_DIM;
-    style.Colors[ImGuiCol_HeaderHovered]    = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_HeaderActive]     = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_Separator]        = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
-    style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(0.40f, 0.30f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_SeparatorActive]  = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_ResizeGrip]       = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
-    style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.40f, 0.30f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_ResizeGripActive] = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_Tab]              = PURPLE_DIM;
-    style.Colors[ImGuiCol_TabHovered]       = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
-    style.Colors[ImGuiCol_TabActive]        = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_TabUnfocused]     = PURPLE_DEEP;
-    style.Colors[ImGuiCol_TabUnfocusedActive] = PURPLE_DIM;
-    style.Colors[ImGuiCol_PlotLines]        = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
-    style.Colors[ImGuiCol_PlotHistogram]    = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
-    style.Colors[ImGuiCol_TableHeaderBg]    = PURPLE_DIM;
-    style.Colors[ImGuiCol_TableBorderStrong] = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
-    style.Colors[ImGuiCol_TableBorderLight] = ImVec4(0.20f, 0.15f, 0.30f, 1.0f);
+    style.Colors[ImGuiCol_Text]             = TXT_MAIN;
+    style.Colors[ImGuiCol_TextDisabled]     = TXT_MUTED;
+    style.Colors[ImGuiCol_WindowBg]         = BG_MAIN;
+    style.Colors[ImGuiCol_ChildBg]          = BG_PANEL;
+    style.Colors[ImGuiCol_PopupBg]          = BG_PANEL;
+    style.Colors[ImGuiCol_Border]           = COL_BORDER;
+    style.Colors[ImGuiCol_FrameBg]          = SEC_HEADER;
+    style.Colors[ImGuiCol_FrameBgHovered]   = HOVER_ACC;
+    style.Colors[ImGuiCol_FrameBgActive]    = PURPLE_ACC;
+    style.Colors[ImGuiCol_TitleBg]          = BG_MAIN;
+    style.Colors[ImGuiCol_TitleBgActive]    = BG_MAIN;
+    style.Colors[ImGuiCol_MenuBarBg]        = BG_MAIN;
+    style.Colors[ImGuiCol_ScrollbarBg]      = BG_PANEL;
+    style.Colors[ImGuiCol_ScrollbarGrab]    = PURPLE;
+    style.Colors[ImGuiCol_ScrollbarGrabHovered] = PURPLE_ACC;
+    style.Colors[ImGuiCol_ScrollbarGrabActive]  = PURPLE_ACC;
+    style.Colors[ImGuiCol_CheckMark]        = PURPLE_ACC;
+    style.Colors[ImGuiCol_SliderGrab]       = PURPLE_ACC;
+    style.Colors[ImGuiCol_SliderGrabActive] = PURPLE_ACC;
+    style.Colors[ImGuiCol_Button]           = PURPLE;
+    style.Colors[ImGuiCol_ButtonHovered]    = HOVER_ACC;
+    style.Colors[ImGuiCol_ButtonActive]     = PURPLE_ACC;
+    style.Colors[ImGuiCol_Header]           = SEC_HEADER;
+    style.Colors[ImGuiCol_HeaderHovered]    = HOVER_ACC;
+    style.Colors[ImGuiCol_HeaderActive]     = PURPLE_ACC;
+    style.Colors[ImGuiCol_Separator]        = COL_BORDER;
+    style.Colors[ImGuiCol_SeparatorHovered] = PURPLE;
+    style.Colors[ImGuiCol_SeparatorActive]  = PURPLE_ACC;
+    style.Colors[ImGuiCol_ResizeGrip]       = COL_BORDER;
+    style.Colors[ImGuiCol_ResizeGripHovered] = PURPLE;
+    style.Colors[ImGuiCol_ResizeGripActive] = PURPLE_ACC;
+    style.Colors[ImGuiCol_Tab]              = SEC_HEADER;
+    style.Colors[ImGuiCol_TabHovered]       = HOVER_ACC;
+    style.Colors[ImGuiCol_TabActive]        = PURPLE;
+    style.Colors[ImGuiCol_TabUnfocused]     = BG_PANEL;
+    style.Colors[ImGuiCol_TabUnfocusedActive] = SEC_HEADER;
+    style.Colors[ImGuiCol_PlotLines]        = PURPLE_ACC;
+    style.Colors[ImGuiCol_PlotLinesHovered] = PURPLE_ACC;
+    style.Colors[ImGuiCol_PlotHistogram]    = PURPLE;
+    style.Colors[ImGuiCol_PlotHistogramHovered] = PURPLE_ACC;
+    style.Colors[ImGuiCol_TableHeaderBg]    = SEC_HEADER;
+    style.Colors[ImGuiCol_TableBorderStrong] = COL_BORDER;
+    style.Colors[ImGuiCol_TableBorderLight] = COL_BORDER;
     style.Colors[ImGuiCol_TableRowBg]       = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    style.Colors[ImGuiCol_TableRowBgAlt]    = ImVec4(0.10f, 0.06f, 0.15f, 1.0f);
-    style.Colors[ImGuiCol_TextSelectedBg]   = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_DragDropTarget]   = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_NavHighlight]     = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_NavWindowingHighlight] = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_TableRowBgAlt]    = BG_PANEL;
+    style.Colors[ImGuiCol_TextSelectedBg]   = PURPLE;
+    style.Colors[ImGuiCol_DragDropTarget]   = PURPLE_ACC;
+    style.Colors[ImGuiCol_NavHighlight]     = PURPLE_ACC;
+    style.Colors[ImGuiCol_NavWindowingHighlight] = PURPLE_ACC;
     style.Colors[ImGuiCol_NavWindowingDimBg]   = ImVec4(0.00f, 0.00f, 0.00f, 0.60f);
     style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.70f);
-    style.FrameRounding     = 6.0f;
-    style.WindowPadding     = ImVec2(12, 10);
+    style.FrameRounding     = 8.0f;
+    style.WindowPadding     = ImVec2(14, 12);
     style.FramePadding      = ImVec2(10, 6);
     style.ItemSpacing       = ImVec2(10, 8);
     style.ScrollbarSize     = 14.0f;
