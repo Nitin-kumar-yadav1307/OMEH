@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -124,7 +125,7 @@ class MainActivity : AppCompatActivity() {
     /** Renders the join QR once per payload change (ZXing -> ImageView). */
     private fun showQr(payload: String) {
         if (payload.isEmpty() ||
-            (payload == lastQrShown && qrView.visibility == ImageView.VISIBLE)) return
+            (payload == lastQrShown && binding.qrView.visibility == ImageView.VISIBLE)) return
         try {
             val hints = mapOf(
                 EncodeHintType.MARGIN to 1,
@@ -136,8 +137,8 @@ class MainActivity : AppCompatActivity() {
                 if (matrix.get(i % matrix.width, i / matrix.width)) Color.BLACK else Color.WHITE
             }
             bmp.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
-            qrView.setImageBitmap(bmp)
-            qrView.visibility = ImageView.VISIBLE
+            binding.qrView.setImageBitmap(bmp)
+            binding.qrView.visibility = ImageView.VISIBLE
             lastQrShown = payload
             AppLog.i("QR rendered (${matrix.width}px) — client: SCAN TO JOIN")
         } catch (t: Throwable) {
@@ -149,10 +150,10 @@ class MainActivity : AppCompatActivity() {
         override fun run() {
             when {
                 MasterService.running -> {
-                    masterIpView.text =
+                    binding.masterIpView.text =
                         "Master P2P IP: ${MasterService.p2pIp}  broadcast: ${MasterService.p2pBroadcastIp}"
                     binding.statusView.setTextColor(Color.rgb(168, 85, 247))
-                    statusView.text = buildString {
+                    binding.statusView.text = buildString {
                         append(if (MasterService.qrReady) "MASTER (Group Owner) — QR ready"
                                else "MASTER — forming group…")
                         append(if (MasterService.capturing) "  • capturing audio"
@@ -174,11 +175,11 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                     if (MasterService.qrReady) showQr(MasterService.qrPayload)
-                    else qrView.visibility = ImageView.GONE
+                    else binding.qrView.visibility = ImageView.GONE
                 }
                 ClientService.running -> {
-                    qrView.visibility = ImageView.GONE
-                    masterIpView.text =
+                    binding.qrView.visibility = ImageView.GONE
+                    binding.masterIpView.text =
                         "Client of ${ClientService.masterIp}  mode=${ClientService.joinMode}"
                     val s = ClientService.status
                     val ppm = (s[2] - 1.0) * 1e6
@@ -198,10 +199,10 @@ class MainActivity : AppCompatActivity() {
                             "NO AUDIO — master is not capturing (tap Allow + play music on master)"
                         else -> "priming…"
                     }
-                    statusView.setTextColor(
+                    binding.statusView.setTextColor(
                         if (verified) Color.rgb(168, 85, 247) else Color.rgb(240, 90, 140)
                     )
-                    statusView.text = buildString {
+                    binding.statusView.text = buildString {
                         append(if (verified) "CONNECTED & VERIFIED" else "JOINING — NOT VERIFIED")
                         append("\n")
                         append("buffer=${s[1].toInt()}ms  level=%.0f  ratio=%.6f (%+.0fppm)\n"
@@ -214,19 +215,19 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 else -> {
-                    qrView.visibility = ImageView.GONE
-                    masterIpView.text = "Local IP: ${localIpString()}"
-                    statusView.setTextColor(Color.rgb(180, 170, 200))
-                    statusView.text =
+                    binding.qrView.visibility = ImageView.GONE
+                    binding.masterIpView.text = "Local IP: ${localIpString()}"
+                    binding.statusView.setTextColor(Color.rgb(180, 170, 200))
+                    binding.statusView.text =
                         "Idle. Master: START AS MASTER + Allow, show QR.\n" +
                         "Client: SCAN TO JOIN and point at the QR."
                 }
             }
-            logView.text = AppLog.dump(12)
+            binding.logView.text = AppLog.dump(12)
             // Build marker so a stale APK is obvious on the phone (no ADB).
-            if (verView.text != BUILD_TAG) {
-                verView.text = BUILD_TAG
-                verView.setTextColor(Color.rgb(160, 150, 180))
+            if (binding.statusTitleView.text != BUILD_TAG) {
+                binding.statusTitleView.text = BUILD_TAG
+                binding.statusTitleView.setTextColor(Color.rgb(160, 150, 180))
             }
             handler.postDelayed(this, 500)
         }
@@ -243,7 +244,6 @@ class MainActivity : AppCompatActivity() {
      *        retryable capture state + version-safe parcelable extra
      */
     private val BUILD_TAG = "SyncWifi v19 (Wi-Fi Direct band diagnostic: logs group MHz)"
-    private lateinit var verView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -288,8 +288,8 @@ class MainActivity : AppCompatActivity() {
             ClientService.pendingMasterName = parsed.masterName ?: parsed.ssid
             AppLog.i("Scan: QR ok — looking for master '${ClientService.pendingMasterName}' " +
                      "(audio=${parsed.port}, ctrl=${parsed.port + 1})")
-            statusView.setTextColor(Color.rgb(168, 85, 247))
-            statusView.text = "QR ok — looking for '${ClientService.pendingMasterName}'…\n" +
+            binding.statusView.setTextColor(Color.rgb(168, 85, 247))
+            binding.statusView.text = "QR ok — looking for '${ClientService.pendingMasterName}'…\n" +
                 "Joining by Wi-Fi Direct (no Settings needed)."
             startForegroundService(Intent(this, ClientService::class.java))
         }
@@ -310,8 +310,8 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) { false }
             if (!wifiOn)
                 AppLog.w("Master: Wi-Fi is OFF - Wi-Fi Direct group cannot be created (capture still runs)")
-            statusView.setTextColor(Color.rgb(180, 170, 200))
-            statusView.text = "Starting master + forming Wi-Fi Direct group…"
+            binding.statusView.setTextColor(Color.rgb(180, 170, 200))
+            binding.statusView.text = "Starting master + forming Wi-Fi Direct group…"
             // Start the service FIRST without a consent token: the P2P group
             // and the join QR do NOT need screen-capture consent, so the QR
             // appears even if the consent result is delayed or lost. The
@@ -379,8 +379,8 @@ class MainActivity : AppCompatActivity() {
                 // its foreground type immediately from this consent token.
                 startForegroundService(i)
             } else {
-                statusView.setTextColor(Color.rgb(220, 100, 200))
-                statusView.text = "Screen capture denied — master runs WITHOUT audio " +
+                binding.statusView.setTextColor(Color.rgb(220, 100, 200))
+                binding.statusView.text = "Screen capture denied — master runs WITHOUT audio " +
                     "(QR still shown above). Tap START AS MASTER to retry capture."
             }
         }

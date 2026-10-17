@@ -85,6 +85,14 @@
                 android:contentDescription="Copy IP" />
         </LinearLayout>
 
+        <ImageView
+            android:id="@+id/qrView"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            android:contentDescription="Join QR" />
+
         <!-- Buttons -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/masterBtn"
@@ -182,6 +190,16 @@
                 android:layout_height="wrap_content"
                 android:text="Wi-Fi Direct band diagnostic: logs group MHz"
                 android:textSize="12sp"
+                android:textColor="@color/purple_lavender"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/statusView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Idle"
+                android:textSize="14sp"
                 android:textColor="@color/purple_lavender"
                 android:layout_marginTop="4dp"
                 android:layout_marginBottom="12dp" />
