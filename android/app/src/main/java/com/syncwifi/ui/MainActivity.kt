@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
                 MasterService.running -> {
                     masterIpView.text =
                         "Master P2P IP: ${MasterService.p2pIp}  broadcast: ${MasterService.p2pBroadcastIp}"
-                    statusView.setTextColor(Color.rgb(38, 166, 54))
+                    statusView.setTextColor(Color.rgb(168, 85, 247))
                     statusView.text = buildString {
                         append(if (MasterService.qrReady) "MASTER (Group Owner) — QR ready"
                                else "MASTER — forming group…")
@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
                         else -> "priming…"
                     }
                     statusView.setTextColor(
-                        if (verified) Color.rgb(38, 166, 54) else Color.rgb(200, 80, 60)
+                        if (verified) Color.rgb(168, 85, 247) else Color.rgb(240, 90, 140)
                     )
                     statusView.text = buildString {
                         append(if (verified) "CONNECTED & VERIFIED" else "JOINING — NOT VERIFIED")
@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                 else -> {
                     qrView.visibility = ImageView.GONE
                     masterIpView.text = "Local IP: ${localIpString()}"
-                    statusView.setTextColor(Color.rgb(100, 100, 100))
+                    statusView.setTextColor(Color.rgb(180, 170, 200))
                     statusView.text =
                         "Idle. Master: START AS MASTER + Allow, show QR.\n" +
                         "Client: SCAN TO JOIN and point at the QR."
@@ -230,7 +230,7 @@ class MainActivity : AppCompatActivity() {
             // Build marker so a stale APK is obvious on the phone (no ADB).
             if (verView.text != BUILD_TAG) {
                 verView.text = BUILD_TAG
-                verView.setTextColor(Color.rgb(120, 120, 120))
+                verView.setTextColor(Color.rgb(160, 150, 180))
             }
             handler.postDelayed(this, 500)
         }
@@ -289,7 +289,7 @@ class MainActivity : AppCompatActivity() {
             ClientService.pendingMasterName = parsed.masterName ?: parsed.ssid
             AppLog.i("Scan: QR ok — looking for master '${ClientService.pendingMasterName}' " +
                      "(audio=${parsed.port}, ctrl=${parsed.port + 1})")
-            statusView.setTextColor(Color.rgb(38, 166, 54))
+            statusView.setTextColor(Color.rgb(168, 85, 247))
             statusView.text = "QR ok — looking for '${ClientService.pendingMasterName}'…\n" +
                 "Joining by Wi-Fi Direct (no Settings needed)."
             startForegroundService(Intent(this, ClientService::class.java))
@@ -305,7 +305,7 @@ class MainActivity : AppCompatActivity() {
         logView = TextView(this).apply {
             textSize = 11f
             typeface = android.graphics.Typeface.MONOSPACE
-            setTextColor(Color.rgb(140, 140, 140))
+            setTextColor(Color.rgb(150, 140, 170))
             text = "(log empty)"
         }
         masterBtn = Button(this).apply { text = "START AS MASTER" }
@@ -355,7 +355,7 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) { false }
             if (!wifiOn)
                 AppLog.w("Master: Wi-Fi is OFF - Wi-Fi Direct group cannot be created (capture still runs)")
-            statusView.setTextColor(Color.rgb(100, 100, 100))
+            statusView.setTextColor(Color.rgb(180, 170, 200))
             statusView.text = "Starting master + forming Wi-Fi Direct group…"
             // Start the service FIRST without a consent token: the P2P group
             // and the join QR do NOT need screen-capture consent, so the QR
@@ -424,7 +424,7 @@ class MainActivity : AppCompatActivity() {
                 // its foreground type immediately from this consent token.
                 startForegroundService(i)
             } else {
-                statusView.setTextColor(Color.rgb(230, 120, 20))
+                statusView.setTextColor(Color.rgb(220, 100, 200))
                 statusView.text = "Screen capture denied — master runs WITHOUT audio " +
                     "(QR still shown above). Tap START AS MASTER to retry capture."
             }

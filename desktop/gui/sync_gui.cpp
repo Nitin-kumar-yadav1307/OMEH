@@ -74,7 +74,7 @@ static void fatal_box(const std::string &msg)
 {
     fprintf(stderr, "sync_gui: %s\n", msg.c_str());
 #ifdef _WIN32
-    MessageBoxA(nullptr, msg.c_str(), "SyncWifi", MB_OK | MB_ICONERROR);
+    MessageBoxA(nullptr, msg.c_str(), "OMEH", MB_OK | MB_ICONERROR);
 #endif
 }
 
@@ -721,9 +721,68 @@ int main(int argc, char **argv)
     ImGuiStyle &style = ImGui::GetStyle();
     style.WindowRounding    = 8.0f;
     style.FramePadding      = ImVec2(6.0f, 3.0f);
-    /* checkmarks must be visible on the default table background; the
-       dark theme's default white tick is invisible against mid-grey. */
-    style.Colors[ImGuiCol_CheckMark] = ImVec4(0.22f, 0.82f, 0.42f, 1.0f);
+    /* Logo palette (purple headphones): primary #A855F7, deep #190A37,
+       near-white #F0F0FA, lavender #B4AAC8. Override StyleColorsDark so
+       every surface, text, widget and frame matches the brand. */
+    const ImVec4 PURPLE_PRIMARY = ImVec4(0.66f, 0.33f, 0.97f, 1.0f);   /* #A855F7 */
+    const ImVec4 PURPLE_DEEP    = ImVec4(0.10f, 0.04f, 0.22f, 1.0f);   /* #190A37 */
+    const ImVec4 PURPLE_LAV     = ImVec4(0.71f, 0.67f, 0.78f, 1.0f);   /* #B4AAC8 */
+    const ImVec4 PURPLE_WHITE   = ImVec4(0.94f, 0.94f, 0.98f, 1.0f);   /* #F0F0FA */
+    const ImVec4 PURPLE_DIM     = ImVec4(0.20f, 0.10f, 0.40f, 1.0f);   /* dimmed bg */
+
+    style.Colors[ImGuiCol_Text]             = PURPLE_WHITE;
+    style.Colors[ImGuiCol_TextDisabled]     = PURPLE_LAV;
+    style.Colors[ImGuiCol_WindowBg]         = PURPLE_DEEP;
+    style.Colors[ImGuiCol_ChildBg]          = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
+    style.Colors[ImGuiCol_PopupBg]          = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
+    style.Colors[ImGuiCol_Border]           = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_FrameBg]          = PURPLE_DIM;
+    style.Colors[ImGuiCol_FrameBgHovered]   = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_FrameBgActive]    = ImVec4(0.55f, 0.30f, 0.75f, 1.0f);
+    style.Colors[ImGuiCol_TitleBg]          = PURPLE_DEEP;
+    style.Colors[ImGuiCol_TitleBgActive]    = PURPLE_DIM;
+    style.Colors[ImGuiCol_MenuBarBg]        = PURPLE_DEEP;
+    style.Colors[ImGuiCol_ScrollbarBg]      = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
+    style.Colors[ImGuiCol_ScrollbarGrab]    = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
+    style.Colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.85f, 0.60f, 1.00f, 1.0f);
+    style.Colors[ImGuiCol_CheckMark]        = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_SliderGrab]       = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
+    style.Colors[ImGuiCol_Button]           = PURPLE_DIM;
+    style.Colors[ImGuiCol_ButtonHovered]    = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_ButtonActive]     = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_Header]           = PURPLE_DIM;
+    style.Colors[ImGuiCol_HeaderHovered]    = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_HeaderActive]     = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_Separator]        = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(0.40f, 0.30f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_SeparatorActive]  = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_ResizeGrip]       = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.40f, 0.30f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_ResizeGripActive] = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_Tab]              = PURPLE_DIM;
+    style.Colors[ImGuiCol_TabHovered]       = ImVec4(0.35f, 0.20f, 0.55f, 1.0f);
+    style.Colors[ImGuiCol_TabActive]        = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_TabUnfocused]     = PURPLE_DEEP;
+    style.Colors[ImGuiCol_TabUnfocusedActive] = PURPLE_DIM;
+    style.Colors[ImGuiCol_DockingPreview]   = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_DockingEmptyBg]   = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
+    style.Colors[ImGuiCol_PlotLines]        = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
+    style.Colors[ImGuiCol_PlotHistogram]    = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
+    style.Colors[ImGuiCol_TableHeaderBg]    = PURPLE_DIM;
+    style.Colors[ImGuiCol_TableBorderStrong] = ImVec4(0.30f, 0.20f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_TableBorderLight] = ImVec4(0.20f, 0.15f, 0.30f, 1.0f);
+    style.Colors[ImGuiCol_TableRowBg]       = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    style.Colors[ImGuiCol_TableRowBgAlt]    = ImVec4(0.10f, 0.06f, 0.15f, 1.0f);
+    style.Colors[ImGuiCol_TextSelectedBg]   = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_DragDropTarget]   = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_NavHighlight]     = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_NavWindowingHighlight] = PURPLE_PRIMARY;
+    style.Colors[ImGuiCol_NavWindowingDimBg]   = ImVec4(0.00f, 0.00f, 0.00f, 0.60f);
+    style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.70f);
     style.FrameRounding     = 6.0f;
     style.WindowPadding     = ImVec2(12, 10);
     style.FramePadding      = ImVec2(10, 6);
@@ -761,7 +820,7 @@ int main(int argc, char **argv)
         SDL_GL_GetDrawableSize(window, &vw, &vh);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2((float)vw, (float)vh), ImGuiCond_Always);
-        ImGui::Begin("SyncWifi", nullptr,
+        ImGui::Begin("OMEH", nullptr,
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
         if (ImGui::CollapsingHeader("Status", ImGuiTreeNodeFlags_DefaultOpen))
@@ -779,7 +838,7 @@ int main(int argc, char **argv)
         int w, h;
         SDL_GL_GetDrawableSize(window, &w, &h);
         glViewport(0, 0, w, h);
-        glClearColor(0.10f, 0.10f, 0.12f, 1.0f);
+        glClearColor(0.10f, 0.04f, 0.22f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);

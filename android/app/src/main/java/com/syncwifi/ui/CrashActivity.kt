@@ -43,7 +43,7 @@ class CrashActivity : AppCompatActivity() {
             text = trace
             textSize = 12f
             typeface = Typeface.MONOSPACE
-            setTextColor(Color.rgb(255, 190, 190))
+            setTextColor(Color.rgb(255, 200, 240))
             setTextIsSelectable(true)
             setPadding(32, 32, 32, 32)
         }
@@ -63,7 +63,7 @@ class CrashActivity : AppCompatActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(18, 18, 18))
+            setBackgroundColor(Color.rgb(25, 10, 55))
             gravity = Gravity.CENTER_HORIZONTAL
             addView(LinearLayout(this@CrashActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
