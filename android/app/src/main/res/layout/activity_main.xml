@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/purple_deep">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:id="@+id/logoView"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/logo"
+                android:contentDescription="OMEH logo" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/appNameView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="OMEH"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple_white" />
+
+                <TextView
+                    android:id="@+id/appSubtitleView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="OPEN MULTI EARBUDS HUB"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Master IP row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_wifi"
+                android:contentDescription="Wi-Fi" />
+
+            <TextView
+                android:id="@+id/masterIpView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Master P2P IP — broadcast: —"
+                android:textSize="14sp"
+                android:textColor="@color/purple_primary" />
+
+            <ImageView
+                android:id="@+id/copyIpView"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_copy"
+                android:contentDescription="Copy IP" />
+        </LinearLayout>
+
+        <!-- Buttons -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/masterBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="START AS MASTER"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/purple_primary"
+            android:textColor="@color/purple_white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/clientBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="START AS CLIENT (NO QR)"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/purple_dim"
+            android:textColor="@color/purple_white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/scanBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SCAN TO JOIN"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/purple_dim"
+            android:textColor="@color/purple_white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stopBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="STOP"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/purple_dim"
+            android:textColor="@color/purple_white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/crashBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="LAST CRASH"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="20dp"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/purple_dim"
+            android:textColor="@color/purple_white" />
+
+        <!-- Status card header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/statusTitleView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="SyncWifi v19"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/purple_white" />
+
+            <TextView
+                android:id="@+id/statusIndicatorView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="● Running"
+                android:textSize="14sp"
+                android:textColor="@color/success_green" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/statusSubtitleView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Wi-Fi Direct band diagnostic: logs group MHz"
+                android:textSize="12sp"
+                android:textColor="@color/purple_lavender"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Audio stats row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/audioDevicesView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/purple_primary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Audio devices"
+                        android:textSize="11sp"
+                        android:textColor="@color/purple_lavender" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="40dp"
+                    android:background="@color/border_color" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/sentView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/purple_primary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="sent"
+                        android:textSize="11sp"
+                        android:textColor="@color/purple_lavender" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="40dp"
+                    android:background="@color/border_color" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/capturedView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/purple_primary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="captured"
+                        android:textSize="11sp"
+                        android:textColor="@color/purple_lavender" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Secondary stats -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <TextView
+                    android:id="@+id/hellosView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="hellos: 0"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/pingsView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="pings: 0"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/readsView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="reads: —"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/errsView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="errs: 0"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/recStateView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="recState: —"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <TextView
+                    android:id="@+id/chView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ch: stereo"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/ucastView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ucast: 0"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/ssidView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SSID: —"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender"
+                    android:layout_marginEnd="16dp" />
+
+                <TextView
+                    android:id="@+id/ipView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="IP: —"
+                    android:textSize="12sp"
+                    android:textColor="@color/purple_lavender" />
+            </LinearLayout>
+
+        <!-- Diagnostic Log -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_document"
+                android:contentDescription="Log" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DIAGNOSTIC LOG"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/purple_white"
+                android:layout_marginStart="8dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:background="@color/border_color" />
+
+            <TextView
+                android:id="@+id/logLiveView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="● Live"
+                android:textSize="14sp"
+                android:textColor="@color/success_green" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/logView"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:background="@color/purple_deep_dark"
+            android:textColor="@color/purple_lavender"
+            android:textSize="11sp"
+            android:typeface="monospace"
+            android:padding="10dp"
+            android:scrollbars="vertical"
+            android:isScrollContainer="true" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="24dp" />
+    </LinearLayout>
+</ScrollView>
+        </LinearLayout>

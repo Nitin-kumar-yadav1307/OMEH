@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- OMEH purple palette from logo -->
+    <color name="purple_primary">#A855F7</color>
+    <color name="purple_deep">#0B0614</color>
+    <color name="purple_deep_dark">#060311</color>
+    <color name="purple_white">#F0F0FA</color>
+    <color name="purple_lavender">#B4AAC8</color>
+    <color name="purple_dim">#2A1455</color>
+    <color name="error_pink">#F05A8C</color>
+    <color name="success_green">#22C55E</color>
+    <color name="card_bg">#150C28</color>
+    <color name="border_color">#5B2D91</color>
+    <color name="button_fill">#2A0A54</color>
+    <color name="log_timestamp">#8E8AA3</color>
+    <color name="log_default">#C9BEE3</color>
+    <color name="log_error">#FF5D6C</color>
+    <color name="log_warn">#E9A23B</color>
+</resources>

@@ -4,17 +4,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Typeface
 import android.media.projection.MediaProjectionManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.net.wifi.WifiManager
-import android.widget.Button
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -24,13 +21,21 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.syncwifi.databinding.ActivityMainBinding
 import com.syncwifi.stream.ClientService
 import com.syncwifi.stream.MasterService
 import com.syncwifi.stream.NativeBridge
 import com.syncwifi.util.AppLog
 
 /**
- * UI (fully programmatic — this project has no res/layout XML):
+ * UI (XML layout at res/layout/activity_main.xml, viewBinding):
+ *
+ *  - Header: OMEH logo + "OMEH" + "OPEN MULTI EARBUDS HUB"
+ *  - Master IP row with copy button
+ *  - Purple buttons: START AS MASTER, START AS CLIENT (NO QR), SCAN TO JOIN, STOP, LAST CRASH
+ *  - Status card: version, running indicator, audio stats, secondary/tertiary stats
+ *  - Diagnostic log section
+ *  - QR preview (shown only when master has a join QR ready)
  *
  *  - MASTER: "START AS MASTER" -> MediaProjection consent -> P2P group is
  *    created (we are the Group Owner) and its SSID/passphrase are encoded
@@ -39,20 +44,11 @@ import com.syncwifi.util.AppLog
  *    via WifiNetworkSpecifier (no Settings page) -> UDP PING/PONG proves the
  *    link -> status turns GREEN "CONNECTED & VERIFIED" and audio starts.
  *  - "START AS CLIENT (no QR)" keeps the legacy discover-and-connect path.
- *  - "LAST CRASH" reopens the saved on-device crash trace; the bottom panel
- *    shows the AppLog tail (JNI/UDP errors) — no adb logcat needed.
+ *  - "LAST CRASH" reopens the saved on-device crash trace.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var masterIpView: TextView
-    private lateinit var statusView: TextView
-    private lateinit var logView: TextView
-    private lateinit var qrView: ImageView
-    private lateinit var masterBtn: Button
-    private lateinit var clientBtn: Button
-    private lateinit var scanBtn: Button
-    private lateinit var stopBtn: Button
-    private lateinit var crashBtn: Button
+    private lateinit var binding: ActivityMainBinding
     private val handler = Handler(Looper.getMainLooper())
     private val RC_CAPTURE = 1001
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
@@ -155,7 +151,7 @@ class MainActivity : AppCompatActivity() {
                 MasterService.running -> {
                     masterIpView.text =
                         "Master P2P IP: ${MasterService.p2pIp}  broadcast: ${MasterService.p2pBroadcastIp}"
-                    statusView.setTextColor(Color.rgb(168, 85, 247))
+                    binding.statusView.setTextColor(Color.rgb(168, 85, 247))
                     statusView.text = buildString {
                         append(if (MasterService.qrReady) "MASTER (Group Owner) — QR ready"
                                else "MASTER — forming group…")
@@ -251,12 +247,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { grants ->
             val denied = grants.filterValues { !it }.keys.joinToString()
             if (denied.isNotEmpty()) {
-                statusView.text = "Permissions denied: $denied — allow them in " +
+                binding.statusView.text = "Permissions denied: $denied — allow them in " +
                     "Settings > Apps > SyncWifi. Wi-Fi Direct needs them; " +
                     "screen capture does not."
                 return@registerForActivityResult
@@ -264,7 +263,7 @@ class MainActivity : AppCompatActivity() {
             // Permissions only affect Wi-Fi Direct group creation; the master
             // button no longer waits on them (the capture dialog is launched
             // unconditionally), so there is nothing to continue here.
-            statusView.text = if (denied.isEmpty())
+            binding.statusView.text = if (denied.isEmpty())
                 "Permissions granted."
             else
                 "Permissions denied: $denied - Wi-Fi Direct needs them; " +
@@ -273,13 +272,13 @@ class MainActivity : AppCompatActivity() {
         scanLauncher = registerForActivityResult(ScanContract()) { result ->
             val contents = result.contents
             if (contents.isNullOrBlank()) {
-                statusView.text = "Scan cancelled."
+                binding.statusView.text = "Scan cancelled."
                 return@registerForActivityResult
             }
             val parsed = parseWifiQr(contents)
             if (parsed == null) {
                 AppLog.w("Scan: not a SyncWifi join QR: ${contents.take(80)}")
-                statusView.text = "That QR is not a SyncWifi join code."
+                binding.statusView.text = "That QR is not a SyncWifi join code."
                 return@registerForActivityResult
             }
             ClientService.pendingSsid = parsed.ssid
@@ -295,53 +294,9 @@ class MainActivity : AppCompatActivity() {
             startForegroundService(Intent(this, ClientService::class.java))
         }
 
-        qrView = ImageView(this).apply {
-            visibility = ImageView.GONE
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true
-        }
-        masterIpView = TextView(this).apply { textSize = 17f }
-        statusView = TextView(this).apply { textSize = 15f }
-        logView = TextView(this).apply {
-            textSize = 11f
-            typeface = android.graphics.Typeface.MONOSPACE
-            setTextColor(Color.rgb(150, 140, 170))
-            text = "(log empty)"
-        }
-        masterBtn = Button(this).apply { text = "START AS MASTER" }
-        clientBtn = Button(this).apply { text = "START AS CLIENT (no QR)" }
-        scanBtn = Button(this).apply { text = "SCAN TO JOIN" }
-        stopBtn = Button(this).apply { text = "STOP" }
-        crashBtn = Button(this).apply { text = "LAST CRASH" }
 
-        val qrSize = (280 * resources.displayMetrics.density).toInt()
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-            addView(qrView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, qrSize))
-            addView(masterIpView)
-            addView(masterBtn)
-            addView(clientBtn)
-            addView(scanBtn)
-            addView(stopBtn)
-            addView(crashBtn)
-            // Build marker (proves which APK is installed — see BUILD_TAG).
-            verView = TextView(this@MainActivity).apply {
-                textSize = 11f
-                setPadding(24, 8, 24, 4)
-            }
-            addView(verView)
-            addView(statusView)
-            addView(ScrollView(this@MainActivity).apply {
-                isFillViewport = true
-                addView(logView)
-            }, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        }
-        setContentView(layout)
 
-        masterBtn.setOnClickListener {
+        binding.masterBtn.setOnClickListener {
             // Screen-capture consent is launched UNCONDITIONALLY further down:
             // it requires NO location/nearby permission, so it must never be
             // gated behind the async permission request.
@@ -384,7 +339,7 @@ class MainActivity : AppCompatActivity() {
             // while the user is still deciding on the capture dialog.
             startForegroundService(Intent(this, MasterService::class.java))
         }
-        scanBtn.setOnClickListener {
+        binding.scanBtn.setOnClickListener {
             // The ZXing scanner activity requests CAMERA itself on first open.
             val opts = ScanOptions()
                 .setDesiredBarcodeFormats(BarcodeFormat.QR_CODE.name)
@@ -393,20 +348,20 @@ class MainActivity : AppCompatActivity() {
                 .setOrientationLocked(false)
             scanLauncher.launch(opts)
         }
-        clientBtn.setOnClickListener {
+        binding.clientBtn.setOnClickListener {
             // Legacy fallback: no QR -> discover P2P peers inside the service.
             if (!ensurePermissions()) {
-                statusView.text = "Grant the requested permissions, then tap again."
+                binding.statusView.text = "Grant the requested permissions, then tap again."
                 return@setOnClickListener
             }
-            statusView.text = "Starting legacy client (peer discovery)…"
+            binding.statusView.text = "Starting legacy client (peer discovery)…"
             startForegroundService(Intent(this, ClientService::class.java))
         }
-        stopBtn.setOnClickListener {
+        binding.stopBtn.setOnClickListener {
             stopService(Intent(this, MasterService::class.java))
             stopService(Intent(this, ClientService::class.java))
         }
-        crashBtn.setOnClickListener {
+        binding.crashBtn.setOnClickListener {
             startActivity(Intent(this, CrashActivity::class.java))
         }
         handler.post(statusTick)
