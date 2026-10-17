@@ -427,4 +427,3 @@
             android:layout_height="24dp" />
     </LinearLayout>
 </ScrollView>
-        </LinearLayout>
