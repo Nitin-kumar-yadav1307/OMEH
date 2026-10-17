@@ -766,8 +766,6 @@ int main(int argc, char **argv)
     style.Colors[ImGuiCol_TabActive]        = PURPLE_PRIMARY;
     style.Colors[ImGuiCol_TabUnfocused]     = PURPLE_DEEP;
     style.Colors[ImGuiCol_TabUnfocusedActive] = PURPLE_DIM;
-    style.Colors[ImGuiCol_DockingPreview]   = PURPLE_PRIMARY;
-    style.Colors[ImGuiCol_DockingEmptyBg]   = ImVec4(0.08f, 0.03f, 0.18f, 1.0f);
     style.Colors[ImGuiCol_PlotLines]        = PURPLE_PRIMARY;
     style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.77f, 0.51f, 0.94f, 1.0f);
     style.Colors[ImGuiCol_PlotHistogram]    = PURPLE_PRIMARY;
