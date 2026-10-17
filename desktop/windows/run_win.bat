@@ -32,7 +32,7 @@ if not exist "pipewire_sync_win.exe" (
 echo [run_win] building pipewire_sync_win.exe ...
 cl /nologo /W4 /O2 /MT /std:c++17 /DNDEBUG ^
     pipewire_sync_win.cpp ^
-    /link ole32.lib oleaut32.lib uuid.lib winmm.lib ^
+    /link ole32.lib oleaut32.lib uuid.lib winmm.lib mmdevapi.lib ^
     /Fe:pipewire_sync_win.exe
 if errorlevel 1 (
     echo [run_win] BUILD FAILED

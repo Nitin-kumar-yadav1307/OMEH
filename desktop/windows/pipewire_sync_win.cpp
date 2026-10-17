@@ -15,6 +15,7 @@
  *   win_device.h    device enumeration + default-device switching
  *   win_capture.h   loopback capture stream lifecycle
  *   win_source.h    source volume, silencing, tone-test tooling
+ *   win_proctap.h   per-process loopback tap + mute-survival probe
  *   win_pipeline.h  packet decode + per-device render feed
  *   win_align.h     delay/trim math + playback stream setup
  *   win_render.h    real-time render feed (drift resampler + alignment)
@@ -33,6 +34,7 @@
 #include "win_device.h"
 #include "win_capture.h"
 #include "win_source.h"
+#include "win_proctap.h"
 #include "win_pipeline.h"
 #include "win_align.h"
 #include "win_render.h"
@@ -51,6 +53,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     g_silent_source = !flags.audible_source;
+    g_proctap_allowed = !flags.no_proctap;
     g_run_seconds   = flags.seconds;
     g_ui_mode       = flags.ui;
     bool root_console = console_is_root() &&
@@ -138,6 +141,16 @@ int main(int argc, char *argv[])
         return 1;
     }
     int silence_probe = g_silent_source ? source_silence_self_test() : 0;
+    if (g_silent_source && silence_probe == 0)
+    {
+        // Result 0 = this driver's tap dies with the mute (the room would
+        // have to stay audible). Before giving up, measure Windows'
+        // per-process tap - a differently-placed tap that may sit before
+        // the mute and keep delivering audio while the speakers are off.
+        int pt = proc_tap_self_test();
+        if (pt > 0 && proc_tap_use_excluded())
+            silence_probe = pt;   // quiet mode restored, via the process tap
+    }
     if (g_silent_source && silence_probe == 0)
         g_silent_source = false;
     // Probe 1 (mute-safe) and 2 (vol0 fallback) both stream quietly; -1 is

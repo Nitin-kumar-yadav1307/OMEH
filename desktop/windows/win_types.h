@@ -185,3 +185,9 @@ static double default_target_level(const DeviceOut *dev);
 static bool g_ui_mode = false;
 static void win_ui_poll();
 static void win_ui_emit_status();
+/* Capture-restart hook (win_proctap.h owns the target): start_capture()
+   consults this first, so a health-watchdog restart of a per-process-tap
+   session comes back as a per-process tap instead of silently degrading to
+   the system loopback (which the mute would then silence). Null until the
+   process probe runs. */
+static bool (*g_capture_restart)() = nullptr;

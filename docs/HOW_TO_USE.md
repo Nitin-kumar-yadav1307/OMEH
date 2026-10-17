@@ -56,8 +56,9 @@ usually plays noticeably later than the other.
 
 - The laptop speakers are **muted** while it runs (that is normal — the sound
   comes from the earbuds instead). Stop the program and the speakers come back.
-  If the engine log instead says `staying audible`, this machine's driver
-  cannot mute without killing the capture — see *If something goes wrong*.
+  If the engine log instead says `staying audible`, neither muting nor the
+  fallback per-process tap silenced this machine — see *If something goes
+  wrong*.
 - The build is **unsigned**: SmartScreen may show a blue "Windows protected
   your PC" screen for the installer or the app. Click **More info**, then
   **Run anyway**.
@@ -152,9 +153,17 @@ audio-endpoint property Windows exposes. Build it the same way to produce
   muting the captured endpoint also kills the loopback tap there.
   The program then tries volume-0 as a fallback (self-test line ends
   `vol0 ...` with a healthy level); if that works the source sits at volume
-  0 while streaming and the room stays quiet. If both fail it stays audible
-  on purpose — silencing would also silence the buds. The sync still works.
-  The self-test prints all three probe levels on every start (e.g.
+  0 while streaming and the room stays quiet.
+  If muting *and* volume-0 both fail, it runs a second probe with Windows'
+  per-process tap (`process-tap self-test: ...` line) — a differently-placed
+  capture point (Windows 10 build 20438+ / Windows 11) that filters by
+  process instead of by endpoint. When its level survives the mute, the
+  engine switches to that tap, mutes the speakers, and the room stays quiet
+  while the buds keep playing — the log says `switching capture to it`.
+  Start with `--no-process-tap` to skip that second probe. Only when every
+  probe fails does it stay audible on purpose — silencing would also silence
+  the buds; the sync still works either way.
+  Every probe prints its three levels on start (e.g.
   `0.0899 unmuted / 0.0035 muted / 0.0014 vol0`); a quiet mode is only
   chosen when its level stays above 25 % of the unmuted one — above 0.0225
   in that example, while both probes here came in far below it. Before
@@ -162,8 +171,8 @@ audio-endpoint property Windows exposes. Build it the same way to produce
   enhancement DSP: *Sound control panel → Speaker Properties → Enhancements →
   Disable all enhancements* (Windows 11: *Advanced → Audio enhancements →
   Off*), then restart SyncWifi — the test re-runs at every start, and a line
-  reading `mute does not affect the loopback tap` means the room now stays
-  quiet.
+  reading `mute does not affect the loopback tap` (or `switching capture to
+  it`) means the room now stays quiet.
 
 - **One earbud still lags the others**
   Stop the program (`q`), then start it again with a small fix. For example,

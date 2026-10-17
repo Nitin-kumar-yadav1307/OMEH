@@ -39,7 +39,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build pipewire_sync_win.exe (MSVC)
-        run: cl /nologo /W4 /O2 /MT /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib /Fe:pipewire_sync_win.exe
+        run: cl /nologo /W4 /O2 /MT /std:c++17 /DNDEBUG desktop\windows\pipewire_sync_win.cpp /link ole32.lib oleaut32.lib uuid.lib winmm.lib mmdevapi.lib /Fe:pipewire_sync_win.exe
 
       # Same ImGui+SDL2 panel as Linux, driving pipewire_sync_win.exe over
       # the --ui pipe. vcpkg manifest mode (desktop/vcpkg.json) installs SDL2

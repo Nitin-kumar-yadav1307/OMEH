@@ -19,6 +19,11 @@ static void stop_capture()
 }
 static bool start_capture()
 {
+    // A session running on the per-process tap must restart as one: this
+    // also runs from the health watchdog, and dropping to the system
+    // loopback while the source is muted would silence the buds. The hook
+    // returns false when the session is not (or no longer) on that tap.
+    if (g_capture_restart && g_capture_restart()) return true;
     stop_capture();
     IMMDevice *d = nullptr;
     if (app.src_id.empty() ||

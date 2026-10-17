@@ -83,6 +83,7 @@ struct Flags
     bool list           = false;
     bool help           = false;
     bool audible_source = false;
+    bool no_proctap     = false;
     int  seconds        = 0;
     bool ui             = false;
 };
@@ -93,6 +94,7 @@ static Flags parse_args(int argc, char *argv[])
     {
         std::string a = argv[i];
         if (a == "--audible-source") { f.audible_source = true; continue; }
+        if (a == "--no-process-tap") { f.no_proctap = true; continue; }
         if (a == "--list" || a == "-l") { f.list = true; continue; }
         if (a == "--help" || a == "-h") { f.help = true; continue; }
         if (a == "--seconds" && i + 1 < argc) { f.seconds = atoi(argv[++i]); continue; }
@@ -115,6 +117,9 @@ static void print_usage()
         "                     playing what the buds get).  Default: the\n"
         "                     source is muted while streaming, after a\n"
         "                     self-test that proves capture survives it.\n"
+        "  --no-process-tap   skip the per-process capture probe: if muting\n"
+        "                     the source kills this machine's capture tap,\n"
+        "                     stay audible instead of switching taps\n"
         "  --list, -l         list the output endpoints and exit\n"
         "  --seconds N        stop cleanly after N seconds (quick test)\n"
 "  --ui               machine mode for the desktop GUI: emit '#'\n"

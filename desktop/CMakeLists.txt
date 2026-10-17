@@ -48,7 +48,7 @@ if(WIN32)
     # NOTE: pipewire_sync_win.cpp is self-contained (own wire format); it does
     # NOT use protocol/sync_wifi.h, so no include dir is needed here.
     add_executable(pipewire_sync_win windows/pipewire_sync_win.cpp)
-    target_link_libraries(pipewire_sync_win PRIVATE ole32 oleaut32 uuid winmm)
+    target_link_libraries(pipewire_sync_win PRIVATE ole32 oleaut32 uuid winmm mmdevapi)
     # Companion diagnostic: dumps every audio-endpoint property, used to
     # find which key identifies Bluetooth devices.
     add_executable(diag_props_win windows/diag_props.cpp)

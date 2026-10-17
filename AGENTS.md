@@ -48,7 +48,7 @@ desktop/
     sync_{config,types,playback,streams,pulse,registry,health}.h
   windows/                   Windows WASAPI earbud-sync (self-contained)
     pipewire_sync_win.cpp      driver: doc comment + ordered #includes + main
-    win_{config,types,device,capture,source,pipeline,align,render,poll,health,main}.h
+    win_{config,types,device,capture,source,proctap,pipeline,align,render,poll,health,main}.h
   tools/                     sync_master / sync_client (use protocol/)
 docs/                        ARCHITECTURE, ANDROID, HOW_TO_USE, TROUBLESHOOTING
 ```
