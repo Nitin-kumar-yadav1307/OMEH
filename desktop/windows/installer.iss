@@ -1,4 +1,4 @@
-; SyncWifi Windows installer - VS Code-style per-user setup.
+; OMEH Windows installer - VS Code-style per-user setup.
 ;
 ; Built by CI (.github/workflows/build.yml): the two exes are copied next
 ; to this file, then ISCC.exe desktop\windows\installer.iss runs from the
@@ -39,7 +39,7 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir={#StageDir}
-OutputBaseFilename=SyncWifi-Setup-{#MyAppVersion}
+OutputBaseFilename=OMEH-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
